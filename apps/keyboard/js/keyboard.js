@@ -309,9 +309,13 @@ const SWIPE_VELOCICTY_THRESHOLD = 0.4;
 // The first thing we do when the keyboard app loads is query all the
 // keyboard-related settings. Only once we have the current settings values
 // do we initialize the rest of the keyboard
-window.addEventListener('load', getKeyboardSettings);
+window.addEventListener('load', function(){
+  console.log('#dbg:+++load-receive■■■');
+  getKeyboardSettings();
+});
 
 function getKeyboardSettings() {
+  console.log('#dbg:getKeyboardSetting-S▼▼▼');
   // Before we can initialize the keyboard we need to know the current
   // value of all keyboard-related settings. These are the settings
   // we want to query, with the default values we'll use if the query fails
@@ -360,13 +364,18 @@ function getKeyboardSettings() {
     // We've got all the settings, so initialize the rest
     initKeyboard();
   });
+  console.log('#dbg:getKeyboardSetting-E▲▲▲');
 }
 
 function initKeyboard() {
+  console.log('#dbg:initKeyboard-S▼▼▼');
   // First, register handlers to track settings changes
   navigator.mozSettings.addObserver('keyboard.current', function(e) {
     // Switch to the language associated keyboard
     // everything.me also uses this setting to improve searches
+    console.log('#dbg:+++keyboard.current-receive e.settingValue: ' + e.settingValue
+      + '■■■');
+
     currentKeyboardName = e.settingValue;
   });
 
@@ -374,6 +383,9 @@ function initKeyboard() {
     // The keyboard won't be displayed when this setting changes, so we
     // don't need to tell the keyboard about the new value right away.
     // We pass the value to the input method when the keyboard is displayed
+    console.log('#dbg:+++keyboard.wordsuggestion-receive e.settingValue: ' + e.settingValue
+      + '■■■');
+
     suggestionsEnabled = e.settingValue;
   });
 
@@ -381,25 +393,37 @@ function initKeyboard() {
     // The keyboard won't be displayed when this setting changes, so we
     // don't need to tell the keyboard about the new value right away.
     // We pass the value to the input method when the keyboard is displayed
+    console.log('#dbg:+++keyboard.autocorrect-receive e.settingValue: ' + e.settingValue
+      + '■■■');
+
     correctionsEnabled = e.settingValue;
   });
 
   navigator.mozSettings.addObserver('keyboard.vibration', function(e) {
+    console.log('#dbg:+++keyboard.vibration-receive e.settingValue: ' + e.settingValue
+      + '■■■');
     vibrationEnabled = e.settingValue;
   });
 
   navigator.mozSettings.addObserver('audio.volume.notification', function(e) {
+    console.log('#dbg:+++keyboard.volume-receive e.settingValue: ' + e.settingValue
+      + '■■■');
     isSoundEnabled = !!e.settingValue;
     handleKeyboardSound();
   });
 
   navigator.mozSettings.addObserver('keyboard.clicksound', function(e) {
+    console.log('#dbg:+++keyboard.clicksound-receive e.settingValue: ' + e.settingValue
+      + '■■■');
     clickEnabled = e.settingValue;
     handleKeyboardSound();
   });
 
   // Gaia UI Test may change this setting to disable keyboard FTU
   navigator.mozSettings.addObserver('keyboard.ftu.enabled', function(e) {
+    console.log('#dbg:+++keyboard.clicksound-receive e.settingValue: ' + e.settingValue
+      + '■■■');
+
     toShowKeyboardFTU = e.settingValue;
   });
 
@@ -449,6 +473,7 @@ function initKeyboard() {
   });
 
   window.addEventListener('hashchange', function() {
+    console.log('#dbg:+++hashchange-receive■■■');
     var inputMethodName = window.location.hash.substring(1);
     setKeyboardName(inputMethodName);
     resetKeyboard();
@@ -456,12 +481,16 @@ function initKeyboard() {
   }, false);
 
   // Handle resize events
-  window.addEventListener('resize', onResize);
+  window.addEventListener('resize', function(){
+    console.log('#dbg:+++resize-receive■■■');
+    onResize();
+  });
 
   // Need to listen to both mozvisibilitychange and oninputcontextchange,
   // because we are not sure which will happen first and we will call
   // showKeyboard() when mozHidden is false and we got inputContext
   window.addEventListener('mozvisibilitychange', function visibilityHandler() {
+    console.log('#dbg:+++mozvisibilitychange-receive mozHidden: '+ document.mozHidden +'■■■');
     var inputMethodName = window.location.hash.substring(1);
     setKeyboardName(inputMethodName);
 
@@ -473,6 +502,7 @@ function initKeyboard() {
   });
 
   window.navigator.mozInputMethod.oninputcontextchange = function() {
+    console.log('#dbg:+++oninputcontextchange??-receive mozHidden: '+ document.mozHidden +'■■■');
     inputContext = navigator.mozInputMethod.inputcontext;
     if (!document.mozHidden && inputContext) {
       showKeyboard();
@@ -480,9 +510,11 @@ function initKeyboard() {
       hideKeyboard();
     }
   };
+  console.log('#dbg:initKeyboard-E▲▲▲');
 }
 
 function handleKeyboardSound() {
+  console.log('#dbg:handleKeyboardSound-S▼▼▼');
   if (clickEnabled && isSoundEnabled) {
     clicker = new Audio(CLICK_SOUND);
     specialClicker = new Audio(SPECIAL_SOUND);
@@ -490,9 +522,11 @@ function handleKeyboardSound() {
     clicker = null;
     specialClicker = null;
   }
+  console.log('#dbg:handleKeyboardSound-E▲▲▲');
 }
 
 function setKeyboardName(name) {
+  console.log('#dbg:setKeyboardName-S name: ' + name + '▼▼▼');
   var keyboard;
 
   if (name in Keyboards) {
@@ -507,6 +541,8 @@ function setKeyboardName(name) {
     }
     else {
       console.warn('Unknown keyboard name', name);
+      console.log('#dbg:setKeyboardName-E_return_▲▲▲');
+
       return;
     }
   }
@@ -516,10 +552,13 @@ function setKeyboardName(name) {
 
   if (!inputMethod)
     inputMethod = defaultInputMethod;
+
+  console.log('#dbg:setKeyboardName-E▲▲▲');
 }
 
 // Support function for render
 function isSpecialKeyObj(key) {
+  console.log('#dbg:isSpecialKeyObj-call■■■');
   var hasSpecialCode = key.keyCode !== KeyEvent.DOM_VK_SPACE &&
     key.keyCode &&
     specialCodes.indexOf(key.keyCode) !== -1;
@@ -530,6 +569,7 @@ function isSpecialKeyObj(key) {
 // Settings app. So no keyboard is displayed when it happens and we don't
 // have to change anything on the screen.
 function handleNewKeyboards() {
+  console.log('#dbg:handleNewKeyboards-S▼▼▼');
   enabledKeyboardNames = [];
   for (var group in keyboardGroups) {
     if (enabledKeyboardGroups['keyboard.layouts.' + group]) {
@@ -553,16 +593,19 @@ function handleNewKeyboards() {
   // properly set when showing the keyboard
   if (enabledKeyboardNames.indexOf(keyboardName) == -1)
     keyboardName = null;
+  console.log('#dbg:handleNewKeyboards-E▲▲▲');
 }
 
 // Map the input type to another type
 function mapInputType(type) {
+  console.log('#dbg:mapInputType-S type:' + type + '▼▼▼');
   switch (type) {
     // basic types
   case 'url':
   case 'tel':
   case 'email':
   case 'text':
+    console.log('#dbg:mapInputType-E_return type: ' + type + ' ▲▲▲');
     return type;
     break;
 
@@ -570,14 +613,17 @@ function mapInputType(type) {
   case 'password':
   case 'search':
   default:
+    console.log('#dbg:mapInputType-E_return text: '+ text + ' ▲▲▲');
     return 'text';
     break;
 
   case 'number':
   case 'range': // XXX: should be different from number
+   console.log('#dbg:mapInputType-E_return number: '+ number + ' ▲▲▲');
     return 'number';
     break;
   }
+  console.log('#dbg:mapInputType-E▲▲▲');
 }
 
 //
@@ -593,12 +639,14 @@ function mapInputType(type) {
 // currentInputType and layoutPage.
 //
 function modifyLayout(keyboardName) {
+  console.log('#dbg:modifyLayout-S▼▼▼');
   // One level copy
   function copy(obj) {
     var newObj = {};
     for (var prop in obj) if (obj.hasOwnProperty(prop)) {
       newObj[prop] = obj[prop];
     }
+    console.log('#dbg:modifyLayout-E_retrun_newobj_▲▲▲');
     return newObj;
   }
 
@@ -779,6 +827,7 @@ function modifyLayout(keyboardName) {
   } else {
     console.warn('No space key found. No special keys will be added.');
   }
+  console.log('#dbg:modifyLayout-E▲▲▲');
 
   return layout;
 }
@@ -799,6 +848,8 @@ function modifyLayout(keyboardName) {
 // layout for keyboardName
 //
 function renderKeyboard(keyboardName) {
+  console.log('#dbg:renderKeyboard-S▼▼▼');
+
   // Add meta keys and type-specific keys to the base layout
   currentLayout = modifyLayout(keyboardName);
 
@@ -856,24 +907,31 @@ function renderKeyboard(keyboardName) {
     drawKeyboard();
   }
 
+  console.log('#dbg:renderKeyboard-E▲▲▲');
+
   // Remember whether the candidate panel is shown or not
 }
 
 function setUpperCase(upperCase, upperCaseLocked) {
+  console.log('#dbg:setUpperCase-S▼▼▼');
 
   upperCaseLocked = (typeof upperCaseLocked == 'undefined') ?
                      isUpperCaseLocked : upperCaseLocked;
 
   // Do nothing if the states are not changed
   if (isUpperCase == upperCase &&
-      isUpperCaseLocked == upperCaseLocked)
+      isUpperCaseLocked == upperCaseLocked){
+    console.log('#dbg:setUpperCase-E_return▲▲▲');
     return;
+  }
 
   isUpperCaseLocked = upperCaseLocked;
   isUpperCase = upperCase;
 
-  if (!isKeyboardRendered)
+  if (!isKeyboardRendered){
+    console.log('#dbg:setUpperCase-E_return▲▲▲');
     return;
+  }
   // When case changes we have to re-render the keyboard.
   // But note that we don't have to relayout the keyboard, so
   // we call draw() directly instead of renderKeyboard()
@@ -887,9 +945,12 @@ function setUpperCase(upperCase, upperCaseLocked) {
 
   //restore the previous candidates
   IMERender.showCandidates(currentCandidates);
+  console.log('#dbg:setUpperCase-E▲▲▲');
 }
 
 function resetUpperCase() {
+  console.log('#dbg:resetUpperCase-call■■■');
+
   if (isUpperCase &&
       !isUpperCaseLocked &&
       layoutPage === LAYOUT_PAGE_DEFAULT) {
@@ -898,6 +959,8 @@ function resetUpperCase() {
 }
 
 function setLayoutPage(newpage) {
+  console.log('#dbg:setLayoutPage-call■■■');
+
   if (newpage === layoutPage)
     return;
 
@@ -913,6 +976,8 @@ function setLayoutPage(newpage) {
 // Inform about a change in the displayed application via mutation observer
 // http://hacks.mozilla.org/2012/05/dom-mutationobserver-reacting-to-dom-changes-without-killing-browser-performance/
 function updateTargetWindowHeight(hide) {
+  console.log('#dbg:updateTargetWindowHeight-call■■■');
+
   var url = document.location.href +
             '#keyboard-test=' + IMERender.ime.scrollHeight;
   window.open(url);
@@ -923,6 +988,7 @@ function updateTargetWindowHeight(hide) {
 // We call triggerFeedback() for the initial press, but we
 // purposefully do not call it again for auto repeating delete.
 function sendDelete(isRepeat) {
+  console.log('#dbg:sendDelete-call■■■');
   // Pass the isRepeat argument to the input method. It may not want
   // to compute suggestions, for example, if this is just one in a series
   // of repeating events.
@@ -931,6 +997,7 @@ function sendDelete(isRepeat) {
 
 // Return the upper value for a key object
 function getUpperCaseValue(key) {
+  console.log('#dbg:getUpperCaseValue-call■■■');
   var hasSpecialCode = specialCodes.indexOf(key.keyCode) > -1;
   if (key.keyCode < 0 || hasSpecialCode || key.compositeKey)
     return key.value;
@@ -940,6 +1007,8 @@ function getUpperCaseValue(key) {
 }
 
 function setMenuTimeout(target, coords, touchId) {
+  console.log('#dbg:setMenuTimeout-call■■■');
+
   // Only set a timeout to show alternatives if there is one touch.
   // This avoids paving over menuTimeout with a new timeout id
   // from a separate touch.
@@ -986,6 +1055,8 @@ function setMenuTimeout(target, coords, touchId) {
 
 // Show alternatives for the HTML node key
 function showAlternatives(key) {
+  console.log('#dbg:showAlternatives-S▼▼▼');
+
   // Get the key object from layout
   var alternatives, altMap, value, keyObj, uppercaseValue, needsCapitalization;
   var r = key ? key.dataset.row : -1, c = key ? key.dataset.column : -1;
@@ -996,6 +1067,7 @@ function showAlternatives(key) {
   // Handle languages alternatives
   if (keyObj.keyCode === SWITCH_KEYBOARD) {
     showIMEList();
+  console.log('#dbg:showAlternatives-E_return▲▲▲');
     return;
   }
 
@@ -1047,8 +1119,10 @@ function showAlternatives(key) {
     alternatives = alternatives.split('');
   }
 
-  if (!alternatives.length)
+  if (!alternatives.length){
+    console.log('#dbg:showAlternatives-E_retrurn▲▲▲');
     return;
+  }
 
   // Locked limits
   // TODO: look for [LOCKED_AREA]
@@ -1069,18 +1143,23 @@ function showAlternatives(key) {
   menuLockedArea.width = menuLockedArea.right - menuLockedArea.left;
   menuLockedArea.ratio =
     menuLockedArea.width / IMERender.menu.children.length;
+  console.log('#dbg:showAlternatives-E▲▲▲');
 }
 
 // Hide alternatives.
 function hideAlternatives() {
-  if (!isShowingAlternativesMenu)
+  console.log('#dbg:hideAlternatives-call■■■');
+
+  if (!isShowingAlternativesMenu){
     return;
+  }
 
   IMERender.hideAlternativesCharMenu();
   isShowingAlternativesMenu = false;
 }
 
 function showKeyboardLayoutMenu(key) {
+  console.log('#dbg:showKeyboardLayoutMenu-call■■■');
 
   // Get the coordinates of the key first, since it will be replaced
   // in the call to showKeyboardAlternatives()
@@ -1107,6 +1186,8 @@ function showKeyboardLayoutMenu(key) {
 
 // Hide keyboard layout menu
 function hideKeyboardLayoutMenu() {
+  console.log('#dbg:hideKeyboardLayoutMenu-call■■■');
+
   if (!isShowingKeyboardLayoutMenu)
     return;
 
@@ -1117,6 +1198,8 @@ function hideKeyboardLayoutMenu() {
 
 // Test if an HTML node is a normal key
 function isNormalKey(key) {
+  console.log('#dbg:isNormalKey-call■■■');
+
   var keyCode = parseInt(key.dataset.keycode);
   return keyCode || key.dataset.selection || key.dataset.compositekey;
 }
@@ -1126,6 +1209,8 @@ function isNormalKey(key) {
 //
 
 function onTouchStart(evt) {
+  console.log('#dbg:onTouchStart-S▼▼▼');
+
   // Prevent a mouse event from firing (this doesn't currently work
   // because of bug 819102)
   evt.preventDefault();
@@ -1134,8 +1219,10 @@ function onTouchStart(evt) {
   touchEventsPresent = true;
 
   // Don't allow new touches if the alternatives menu is showing.
-  if (isShowingAlternativesMenu)
+  if (isShowingAlternativesMenu){
+    console.log('#dbg:onTouchStart-E_return▲▲▲');
     return;
+  }
 
   touchCount = evt.touches.length;
 
@@ -1147,9 +1234,17 @@ function onTouchStart(evt) {
     // DOM.
     // This can happen when the keyboard switches cases, as well as when we
     // show the alternate characters menu for a key.
-    target.addEventListener('touchmove', onTouchMove);
-    target.addEventListener('touchend', onTouchEnd);
-    target.addEventListener('touchcancel', onTouchEnd);
+    target.addEventListener('touchmove', function(){
+
+      onTouchMove();
+    });
+    target.addEventListener('touchend', function(){
+      onTouchEnd();
+    });
+    target.addEventListener('touchcancel', function(){
+
+      onTouchEnd();
+    });
 
     touchedKeys[touchId] = { target: target, x: touch.pageX, y: touch.pageY };
     startPress(target, touch, touchId);
@@ -1159,9 +1254,12 @@ function onTouchStart(evt) {
                              pageY: touch.pageY,
                              timeStamp: evt.timeStamp };
   });
+  console.log('#dbg:onTouchStart-E▲▲▲');
+
 }
 
 function onTouchMove(evt) {
+  console.log('#dbg:onTouchMove-call■■■');
   // Prevent a mouse event from firing
   evt.preventDefault();
 
@@ -1185,6 +1283,8 @@ function onTouchMove(evt) {
 }
 
 function onTouchEnd(evt) {
+  console.log('#dbg:onTouchEnd-call■■■');
+
   // Prevent a mouse event from firing
   evt.preventDefault();
   touchCount = evt.touches.length;
@@ -1240,6 +1340,8 @@ function onTouchEnd(evt) {
 // changedTouches array. For each touch, it calls a callback
 // function with the touch and touchId as arguments.
 function handleTouches(evt, callback) {
+  console.log('#dbg:handleTouches-call■■■');
+
   for (var i = 0; i < evt.changedTouches.length; i++) {
     var touch = evt.changedTouches[i];
     var touchId = touch.identifier;
@@ -1253,6 +1355,8 @@ function handleTouches(evt, callback) {
 // FIXME: We should be able to get rid of these touchEventsPresent checks
 // once bug 819102 is fixed.
 function onMouseDown(evt) {
+  console.log('#dbg:onMouseDown-call■■■');
+
   // Prevent loosing focus to the currently focused app
   // Otherwise, right after mousedown event, the app will receive a focus event.
   evt.preventDefault();
@@ -1269,6 +1373,8 @@ function onMouseDown(evt) {
 // The coords object can either be a mouse event or a touch. We just expect the
 // coords object to have clientX, clientY, pageX, and pageY properties.
 function startPress(target, coords, touchId) {
+  console.log('#dbg:startPress-call■■■');
+
   if (!isNormalKey(target))
     return;
 
@@ -1302,6 +1408,8 @@ function startPress(target, coords, touchId) {
 }
 
 function inMenuLockedArea(lockedArea, coords) {
+  console.log('#dbg:inMenuLockedArea-call■■■');
+
   return (lockedArea &&
           coords.pageY >= lockedArea.top &&
           coords.pageY <= lockedArea.bottom &&
@@ -1310,6 +1418,8 @@ function inMenuLockedArea(lockedArea, coords) {
 }
 
 function onMouseMove(evt) {
+  console.log('#dbg:onMouseMove-call■■■');
+
   if (touchEventsPresent)
     return;
 
@@ -1322,6 +1432,8 @@ function onMouseMove(evt) {
 // to the alternative menu keys but I would prefer another alternative
 // with better performance.
 function movePress(target, coords, touchId) {
+  console.log('#dbg:movePress-call■■■');
+
   // Control locked zone for menu
   if (isShowingAlternativesMenu && inMenuLockedArea(menuLockedArea, coords)) {
     var menuChildren = IMERender.menu.children;
@@ -1382,6 +1494,8 @@ function movePress(target, coords, touchId) {
 }
 
 function onMouseUp(evt) {
+  console.log('#dbg:onMouseUp-call■■■');
+
   if (touchEventsPresent)
     return;
 
@@ -1391,6 +1505,8 @@ function onMouseUp(evt) {
 
 // The user is releasing a key so the key has been pressed. The meat is here.
 function endPress(target, coords, touchId) {
+  console.log('#dbg:endPress-call■■■');
+
   clearTimeout(deleteTimeout);
   clearInterval(deleteInterval);
   clearTimeout(menuTimeout);
@@ -1521,6 +1637,8 @@ function endPress(target, coords, touchId) {
 }
 
 function getKeyCoordinateY(y) {
+  console.log('#dbg:getKeyCoordinateY-call■■■');
+
   var candidatePanel = document.getElementById('keyboard-candidate-panel');
 
   var yBias = 0;
@@ -1533,6 +1651,8 @@ function getKeyCoordinateY(y) {
 // Called from the endPress() function above when the user releases the
 // switch keyboard layout key.
 function switchKeyboard(target) {
+  console.log('#dbg:switchKeyboard-call■■■');
+
   var currentLayoutName = keyboardName;
   var newLayoutName;
   var currentLayout, newLayout;
@@ -1602,18 +1722,23 @@ function switchKeyboard(target) {
 }
 
 function switchToNextIME() {
+  console.log('#dbg:switchToNextIME-call■■■');
+
   var mgmt = navigator.mozInputMethod.mgmt;
   mgmt.next();
 }
 
 
 function showIMEList() {
+  console.log('#dbg:showIMEList-call■■■');
   var mgmt = navigator.mozInputMethod.mgmt;
   mgmt.showAll();
 }
 
 // Turn to default values
 function resetKeyboard() {
+  console.log('#dbg:resetKeyboard-call■■■');
+
   // Don't call setLayoutPage because renderKeyboard() should be invoked
   // separately after this function
   layoutPage = LAYOUT_PAGE_DEFAULT;
@@ -1627,6 +1752,8 @@ function resetKeyboard() {
 // We use it in the defaultInputMethod and in the interface object
 // we pass to real input methods
 function sendKey(keyCode) {
+  console.log('#dbg:sendKey-call■■■');
+
   switch (keyCode) {
   case KeyEvent.DOM_VK_BACK_SPACE:
   case KeyEvent.DOM_VK_RETURN:
@@ -1644,6 +1771,8 @@ function sendKey(keyCode) {
 }
 
 function replaceSurroundingText(text, offset, length) {
+  console.log('#dbg:replaceSurroundingText-call■■■');
+
   if (inputContext) {
     inputContext.replaceSurroundingText(text, offset, length);
   } else {
@@ -1656,6 +1785,8 @@ function replaceSurroundingText(text, offset, length) {
 // The state argument is the data passed with that event, and includes
 // the input field type, its inputmode, its content, and the cursor position.
 function showKeyboard(state) {
+  console.log('#dbg:showKeyboard-S▼▼▼');
+
   // If no keyboard has been selected yet, choose the first enabled one.
   // This will also set the inputMethod
   if (!keyboardName) {
@@ -1723,10 +1854,13 @@ function showKeyboard(state) {
   }, function failedToGetText() {
     doShowKeyboard();
   });
+  console.log('#dbg:showKeyboard-E▲▲▲');
 }
 
 // Hide keyboard
 function hideKeyboard() {
+  console.log('#dbg:hideKeyboard-call■■■');
+
   IMERender.hideIME();
   if (inputMethod.deactivate)
     inputMethod.deactivate();
@@ -1736,6 +1870,8 @@ function hideKeyboard() {
 
 // Resize event handler
 function onResize() {
+  console.log('#dbg:onResize-call■■■');
+
   if (IMERender.ime.dataset.hidden)
     return;
 
@@ -1751,12 +1887,16 @@ function onResize() {
 // Load a special IMEngine (not a usual keyboard but a special IMEngine such
 // as Chinese or Japanese)
 function loadKeyboard(name) {
+  console.log('#dbg:loadKeyboard-call■■■');
+
   var keyboard = Keyboards[name];
   if (keyboard.imEngine)
     loadIMEngine(name);
 }
 
 function loadIMEngine(name) {
+  console.log('#dbg:loadIMEngine-call■■■');
+
   var keyboard = Keyboards[name];
   var sourceDir = './js/imes/';
   var imEngine = keyboard.imEngine;
@@ -1816,6 +1956,8 @@ function loadIMEngine(name) {
 // the default, since the input methods we support don't do anything special
 // for symbols
 function updateLayoutParams() {
+  console.log('#dbg:updateLayoutParams-call■■■');
+
   if (inputMethod.setLayoutParams &&
       layoutPage === LAYOUT_PAGE_DEFAULT) {
     inputMethod.setLayoutParams({
@@ -1829,6 +1971,8 @@ function updateLayoutParams() {
 }
 
 function triggerFeedback(isSpecialKey) {
+  console.log('#dbg:triggerFeedback-call■■■');
+
   if (vibrationEnabled) {
     try {
       navigator.vibrate(50);
@@ -1842,6 +1986,8 @@ function triggerFeedback(isSpecialKey) {
 
 // Utility functions
 function getWindowTop(obj) {
+  console.log('#dbg:getWindowTop-call■■■');
+
   var top;
   top = obj.offsetTop;
   while (!!(obj = obj.offsetParent)) {
@@ -1851,6 +1997,8 @@ function getWindowTop(obj) {
 }
 
 function getWindowLeft(obj) {
+  console.log('#dbg:getWindowLeft-call■■■');
+
   var left;
   left = obj.offsetLeft;
   while (!!(obj = obj.offsetParent)) {
@@ -1873,6 +2021,8 @@ function getWindowLeft(obj) {
 // default value if the setting was not found).
 //
 function getSettings(settings, callback) {
+  console.log('#dbg:getSettings-call■■■');
+
   var results = {};
   try {
     var lock = navigator.mozSettings.createLock();
@@ -1926,6 +2076,8 @@ function getSettings(settings, callback) {
 
 // To determine if the candidate panel for word suggestion is needed
 function needsCandidatePanel() {
+  console.log('#dbg:needsCandidatePanel-call■■■');
+
   return !!((Keyboards[keyboardName].autoCorrectLanguage ||
            Keyboards[keyboardName].needsCandidatePanel) &&
           (!inputMethod.displaysCandidates ||
@@ -1938,7 +2090,6 @@ function needsCandidatePanel() {
  *
  */
 var KeyboardMenuScroll = {
-
   currentCoords: null,
   scrollTimeout: null,
 
