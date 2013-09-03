@@ -123,6 +123,9 @@
   // keyboard.js calls this to pass us the interface object we need
   // to communicate with it
   function init(interfaceObject) {
+    console.log('#dbg:latin.js:init-call interfaceObject:'+ interfaceObject +'■■■');
+    console.dir(interfaceObject);
+    console.trace();
     keyboard = interfaceObject;
   }
 
@@ -135,6 +138,8 @@
   //   'latin-prose': offer word suggestions and capitalization
   //
   function getInputMode(type, mode) {
+    console.log('#dbg:latin.js:getInputMode type:'+ type + ' mode:' + mode + '■■■');
+
     // For text, textarea and search types, use the requested inputmode
     // if it is valid and supported except numeric/digit mode. For
     // numeric/digit mode, we return verbatim since no typing assitance
@@ -168,6 +173,8 @@
   // may be multiple calls to activate() without calls to deactivate between
   // them.
   function activate(lang, state, options) {
+    console.log('#dbg:latin.js:activate-S lang:' + lang
+     + ' state:' + state + ' options:' + options + ' ▼▼▼');
     inputMode = getInputMode(state.type, state.inputmode);
     inputText = state.value;
     cursor = state.selectionStart;
@@ -207,15 +214,22 @@
       else
         updateSuggestions();
     }
+    console.log('#dbg:latin.js:activate-E▲▲▲');
   }
 
   function deactivate() {
+    console.log('#dbg:latin.js:deactivate-S ▼▼▼');
+
     if (!worker || idleTimer)
       return;
     idleTimer = setTimeout(terminateWorker, workerTimeout);
+    console.log('#dbg:latin.js:setTimeout(terminateWorker, workerTimeout)');
+    console.log('#dbg:latin.js:deactivate-E ▲▲▲');
   }
 
   function terminateWorker() {
+    console.log('#dbg:latin.js:timer fired terminateWorker!!');
+    console.log('#dbg:latin.js:terminateWorker-S ▼▼▼');
     if (idleTimer) {
       clearTimeout(idleTimer);
       idleTimer = null;
@@ -226,17 +240,22 @@
       keyboard.sendCandidates([]); // Clear any displayed suggestions
       autoCorrection = null;       // and forget any pending correction.
     }
+    console.log('#dbg:latin.js:terminateWorker-E ▲▲▲');
   }
 
   function setLanguage(newlang) {
+    console.log('#dbg:latin.js:terminateWorker-S newlang:' + newlang + ' ▼▼▼');
     // If there is no worker and no language, or if there is a worker and
     // the language has not changed, then there is nothing to do here.
-    if ((!worker && !newlang) || (worker && newlang === language))
+    if ((!worker && !newlang) || (worker && newlang === language)){
+      console.log('#dbg:latin.js:terminateWorker-E return▲▲▲');
       return;
+    }
 
     // If there is a worker, and no new language, then kill the worker
     if (worker && !newlang) {
       terminateWorker();
+      console.log('#dbg:latin.js:terminateWorker-E return▲▲▲');
       return;
     }
 
@@ -277,9 +296,11 @@
 
     // And now that we've changed the language, ask for new suggestions
     updateSuggestions();
+    console.log('#dbg:latin.js:terminateWorker-E ▲▲▲');
   }
 
   function displaysCandidates() {
+    console.log('#dbg:latin.js:displaysCandidates-call■■■');
     return suggesting && worker;
   }
 
@@ -337,6 +358,8 @@
   function click(keycode, repeat) {
     // If the key is anything other than a backspace, forget about any
     // previous changes that we would otherwise revert.
+    console.log('#dbg:latin.js:click-S keycode:' + keycode + ' repeat:' + repeat + ' ▼▼▼');
+
     if (keycode !== BACKSPACE) {
       revertTo = revertFrom = '';
       justAutoCorrected = false;
@@ -387,6 +410,7 @@
     }
 
     lastSpaceTimestamp = (keycode === SPACE) ? Date.now() : 0;
+    console.log('#dbg:latin.js:click-E▲▲▲');
   }
 
   // Handle any key (including backspace) and do the right thing even if
@@ -394,6 +418,8 @@
   // auto-correction or auto-punctuation.
   function handleKey(keycode) {
     // First, update our internal state
+    console.log('#dbg:latin.js:handleKey-S keycode:' + keycode + ' ▼▼▼');
+
     if (keycode === BACKSPACE) {
       if (selection) {
         // backspace while a region is selected erases the selection
@@ -430,6 +456,7 @@
 
     // Generate the key event
     keyboard.sendKey(keycode);
+    console.log('#dbg:latin.js:handleKey-E▲▲▲');
   }
 
   // Assuming that the word before the cursor is oldWord, send a
@@ -437,6 +464,7 @@
   // field. Also update our internal state to match the new textfield
   // content and cursor position.
   function replaceBeforeCursor(oldWord, newWord) {
+    console.log('#dbg:latin.js:replaceBeforeCursor-S oldWord:' + oldWord + ' newWord:' + newWord + ' ▼▼▼');
     var oldWordLen = oldWord.length;
     if (keyboard.replaceSurroundingText) {
       keyboard.replaceSurroundingText(newWord, oldWordLen, 0);
@@ -463,6 +491,7 @@
       newWord +
       inputText.substring(cursor);
     cursor += newWord.length - oldWordLen;
+    console.log('#dbg:latin.js:replaceBeforeCursor-E▲▲▲');
   }
 
   // If we just did auto correction or auto punctuation, then backspace
@@ -470,6 +499,8 @@
   function handleBackspace() {
     // If we made a correction and haven't changed it at all yet,
     // then revert it.
+    console.log('#dbg:latin.js:handleBackspace-S▼▼▼');
+
     var len = revertFrom ? revertFrom.length : 0;
     if (len && cursor >= len &&
         inputText.substring(cursor - len, cursor) === revertFrom) {
@@ -489,12 +520,14 @@
     else {
       handleKey(BACKSPACE);
     }
+    console.log('#dbg:latin.js:handleBackspace-E▲▲▲');
   }
 
   // This function is called when the user types space, return or a punctuation
   // character. It performs auto correction or auto punctuation or just
   // inserts the character.
   function handleCorrections(keycode) {
+    console.log('#dbg:latin.js:handleBackspace-S keycode:' + keycode + '▼▼▼');
     if (correcting && autoCorrection && !correctionDisabled && atWordEnd() &&
         wordBeforeCursor() !== autoCorrection) {
       autoCorrect(keycode);
@@ -508,11 +541,13 @@
     else {
       handleKey(keycode);
     }
+    console.log('#dbg:latin.js:handleBackspace-E▲▲▲');
   }
 
   // Perform an autocorrection. Assumes that all pre-conditions for
   // auto-correction have been met.
   function autoCorrect(keycode) {
+    console.log('#dbg:latin.js:autoCorrect-S keycode:' + keycode + '▼▼▼');
     // Get the word before the cursor
     var currentWord = wordBeforeCursor();
 
@@ -530,6 +565,7 @@
     revertTo = currentWord + delimiter;
     revertFrom = newWord;
     justAutoCorrected = true;
+    console.log('#dbg:latin.js:autoCorrect-E▲▲▲');
   }
 
   // Auto punctuate, converting space punctuation to punctuation space
@@ -537,6 +573,8 @@
   // close enough together. Assumes that pre-conditions for auto punctuation
   // have been met.
   function autoPunctuate(keycode) {
+    console.log('#dbg:latin.js:autoPunctuate-S keycode:' + keycode + '▼▼▼');
+
     switch (keycode) {
     case SPACE:
       if (Date.now() - lastSpaceTimestamp < DOUBLE_SPACE_TIME)
@@ -557,10 +595,13 @@
       // used after spaces for smileys.
       handleKey(keycode);
       break;
+    console.log('#dbg:latin.js:autoPunctuate-E▲▲▲');
     }
 
     // In both the space space and the space period case we call this function
     function fixPunctuation(keycode) {
+     console.log('#dbg:latin.js:fixPunctuation-S keycode:' + keycode + '▼▼▼');
+
       keyboard.sendKey(BACKSPACE);
       keyboard.sendKey(keycode);
       keyboard.sendKey(SPACE);
@@ -576,6 +617,7 @@
       revertTo = ' ';
       revertFrom = newtext;
       justAutoCorrected = false;
+      console.log('#dbg:latin.js:fixPunctuation-E▲▲▲');
     }
   }
 
@@ -587,8 +629,11 @@
     // if the word before the cursor has changed since we requested
     // these suggestions. That is, if the user has typed faster than we could
     // offer suggestions, ignore them.
+    console.log('#dbg:latin.js:handleSuggestions-S input:' + input + ' suggestions:'+ suggestions + '▼▼▼');
+
     if (suggestions.length === 0 || wordBeforeCursor() !== input) {
       keyboard.sendCandidates([]); // Clear any displayed suggestions
+      console.log('#dbg:latin.js:handleSuggestions-E return▲▲▲');
       return;
     }
 
@@ -644,6 +689,8 @@
     }
 
     keyboard.sendCandidates(suggestions);
+    console.log('#dbg:latin.js:handleSuggestions-E▲▲▲');
+
   }
 
   // If the user selects one of the suggestions offered by this input method
@@ -651,6 +698,8 @@
   // We have to backspace over the current word, insert this new word, and
   // update our internal state to match.
   function select(word) {
+    console.log('#dbg:latin.js:select-S word:' + word + '▼▼▼');
+
     var oldWord = wordBeforeCursor();
 
     // Replace the current word with the selected suggestion plus space
@@ -674,9 +723,12 @@
 
     // And update the keyboard capitalization state, if necessary
     updateCapitalization();
+    console.log('#dbg:latin.js:select-E▲▲▲');
   }
 
   function setLayoutParams(params) {
+    console.log('#dbg:latin.js:setLayoutParams-S params:' + params + '▼▼▼');
+
     layoutParams = params;
     // XXX We call nearbyKeys() every time the keyboard pops up.
     // Maybe it would be better to compute it once in keyboard.js and
@@ -686,8 +738,10 @@
     // passing this data to the prediction engine if nothing has changed.
     var newmap = nearbyKeys(params);
     var serialized = JSON.stringify(newmap);
-    if (serialized === serializedNearbyKeyMap)
+    if (serialized === serializedNearbyKeyMap){
+      console.log('#dbg:latin.js:setLayoutParams-E▲▲▲');
       return;
+    }
 
     nearbyKeyMap = newmap;
     serializedNearbyKeyMap = serialized;
@@ -697,9 +751,12 @@
       // (When switching from QWERTY to Dvorak, e.g.)
       updateSuggestions();
     }
+    console.log('#dbg:latin.js:setLayoutParams-E▲▲▲');
   }
 
   function nearbyKeys(layout) {
+    console.log('#dbg:latin.js:nearbyKeys-S layout:' + layout + '▼▼▼');
+
     var nearbyKeys = {};
     var keys = layout.keyArray;
     var keysize = Math.min(layout.keyWidth, layout.keyHeight) * 1.2;
@@ -729,6 +786,7 @@
       }
       nearbyKeys[key1.code] = nearby;
     }
+    console.log('#dbg:latin.js:nearbyKeys-E▲▲▲');
 
     return nearbyKeys;
 
@@ -738,6 +796,8 @@
     // as the unit of measure. If the distance is greater than 2.5
     // times the radius return 0 instead.
     function distance(key1, key2) {
+      // console.log('#dbg:latin.js:distance-call key1:' + key1 + ' key2:' + key2 + ' ■■■');
+
       var cx1 = key1.x + key1.width / 2;
       var cy1 = key1.y + key1.height / 2;
       var cx2 = key2.x + key2.width / 2;
@@ -764,6 +824,9 @@
     // Determine whether the key is a special character or a regular letter.
     // Special characters include backspace (8), return (13), and space (32).
     function SpecialKey(key) {
+      // console.log('#dbg:latin.js:SpecialKey-call key:' + key + ' ■■■');
+      // console.trace();
+
       switch (key.code) {
       case 0:
       case KeyEvent.DOM_VK_BACK_SPACE:
@@ -781,6 +844,7 @@
   function updateSuggestions(repeat) {
     // If the user hasn't enabled suggestions, or if they're not appropriate
     // for this input type, or are turned off by the input mode, do nothing
+    console.log('#dbg:latin.js:updateSuggestions-call repeat:' + repeat + ' ■■■');
     if (!suggesting && !correcting)
       return;
 
@@ -818,6 +882,8 @@
   function updateCapitalization() {
     // If either the input mode or the input type is one that doesn't
     // want capitalization, then don't alter the state of the keyboard.
+    console.log('#dbg:latin.js:updateCapitalization-call ■■■');
+
     if (!capitalizing) {
       keyboard.resetUpperCase();
       return;
@@ -860,6 +926,8 @@
   // is uppercase if toLowerCase() on that character is returns something
   // different than the character
   function isUpperCase(s) {
+    console.log('#dbg:latin.js:isUpperCase-call s:' + s + ' ■■■');
+
     var lc = s.toLowerCase();
     for (var i = 0, n = s.length; i < n; i++)
       if (s[i] === lc[i])
@@ -868,6 +936,7 @@
   }
 
   function isWhiteSpace(s) {
+    console.log('#dbg:latin.js:isWhiteSpace-call s:' + s + ' ■■■');
     return WS.test(s);
   }
 
@@ -877,6 +946,7 @@
   // must be whitespace.  If there is a selection we never return true.
   function atWordEnd() {
     // If there is a selection we never want suggestions
+    console.log('#dbg:latin.js:atWordEnd-call ■■■');
     if (selection)
       return false;
 
@@ -898,6 +968,8 @@
 
   // Get the word before the cursor. Assumes that atWordEnd() is true
   function wordBeforeCursor() {
+    console.log('#dbg:latin.js:wordBeforeCursor-call ■■■');
+
     for (var firstletter = cursor - 1; firstletter >= 0; firstletter--) {
       if (WORDSEP.test(inputText[firstletter])) {
         break;
@@ -911,6 +983,8 @@
   }
 
   function atSentenceStart() {
+    console.log('#dbg:latin.js:atSentenceStart-call ■■■');
+
     var i = cursor - 1;
 
     if (i === -1)    // This is the empty string case
