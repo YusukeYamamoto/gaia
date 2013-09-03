@@ -1,7 +1,8 @@
 'use strict';
 
 var CallsHandler = (function callsHandler() {
-  var COMMS_APP_ORIGIN = 'app://communications.gaiamobile.org';
+  var COMMS_APP_ORIGIN = document.location.protocol + '//' +
+    document.location.host;
 
   // Changing this will probably require markup changes
   var CALLS_LIMIT = 2;
@@ -640,7 +641,9 @@ var CallsHandler = (function callsHandler() {
 
     addRecentEntry: addRecentEntry,
 
-    activeCall: activeCall
+    get activeCall() {
+      return activeCall();
+    }
   };
 })();
 
