@@ -300,7 +300,8 @@
   }
 
   function displaysCandidates() {
-    console.log('#dbg:latin.js:displaysCandidates-call■■■');
+    console.log('#dbg:latin.js:displaysCandidates-call suggesting: ' + suggesting + ' worker:' + worker + ' ■■■');
+    // console.dir(worker);
     return suggesting && worker;
   }
 
@@ -728,6 +729,7 @@
 
   function setLayoutParams(params) {
     console.log('#dbg:latin.js:setLayoutParams-S params:' + params + '▼▼▼');
+    console.trace();
 
     layoutParams = params;
     // XXX We call nearbyKeys() every time the keyboard pops up.

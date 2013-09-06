@@ -491,6 +491,7 @@ function initKeyboard() {
   // Handle resize events
   window.addEventListener('resize', function(){
     console.log('#dbg:keyboard.js:+++resize-receive■■■');
+    console.trace();
     onResize();
   });
 
@@ -857,6 +858,7 @@ function modifyLayout(keyboardName) {
 //
 function renderKeyboard(keyboardName) {
   console.log('#dbg:keyboard.js:renderKeyboard-S▼▼▼');
+  console.trace();
 
   // Add meta keys and type-specific keys to the base layout
   currentLayout = modifyLayout(keyboardName);
@@ -864,10 +866,13 @@ function renderKeyboard(keyboardName) {
   function drawKeyboard() {
     // Tell the renderer what input method we're using. This will set a CSS
     // classname that can be used to style the keyboards differently
+    console.log('#dbg:keyboard.js:drawKeyboard-S▼▼▼');
+
     var keyboard = Keyboards[keyboardName];
     IMERender.setInputMethodName(keyboard.imEngine || 'default');
 
     IMERender.ime.classList.remove('full-candidate-panel');
+    console.log('#dbg:keyboard.js:IMERender.ime.classList.remove_called■■');
 
     // And draw the layout
     IMERender.draw(currentLayout, {
@@ -875,8 +880,11 @@ function renderKeyboard(keyboardName) {
       inputType: currentInputType,
       showCandidatePanel: needsCandidatePanel()
     });
+    console.log('#dbg:keyboard.js:drawKeyboard-IMERender.draw()_called■■');
+
 
     IMERender.setUpperCaseLock(isUpperCaseLocked ? 'locked' : isUpperCase);
+    console.log('#dbg:keyboard.js:drawKeyboard-IMERender.setUpperCaseLock()_called■■');
 
     // If needed, empty the candidate panel
     if (inputMethod.empty)
@@ -884,11 +892,14 @@ function renderKeyboard(keyboardName) {
 
     // Tell the input method about the new keyboard layout
     updateLayoutParams();
+    console.log('#dbg:keyboard.js:drawKeyboard-updateLayoutParams()_called■■');
 
     //restore the previous candidates
     IMERender.showCandidates(currentCandidates);
+    console.log('#dbg:keyboard.js:drawKeyboard-IMERender.showCandidates()_called■■');
 
     isKeyboardRendered = true;
+    console.log('#dbg:keyboard.js:drawKeyboard-E▲▲▲');
   }
 
   clearTimeout(redrawTimeout);
@@ -1835,6 +1846,8 @@ function showKeyboard(state) {
   };
 
   function doShowKeyboard() {
+    console.log('#dbg:keyboard.js:doShowKeyboard-S▼▼▼');
+
     if (inputMethod.activate) {
       inputMethod.activate(Keyboards[keyboardName].autoCorrectLanguage,
         state, {
@@ -1846,6 +1859,7 @@ function showKeyboard(state) {
     // render the keyboard after activation, which will determine the state
     // of uppercase/suggestion, etc.
     renderKeyboard(keyboardName);
+    console.log('#dbg:keyboard.js:doShowKeyboard-E▲▲▲');
   }
 
   var promise = inputContext.getText();
