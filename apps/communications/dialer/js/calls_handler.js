@@ -97,21 +97,33 @@ var CallsHandler = (function callsHandler() {
     });
 
     // Removing any ended calls to handledCalls
-    handledCalls.forEach(function handledCallIterator(hc, index) {
+    for (var index = (handledCalls.length - 1); index >= 0; index--) {
+      var hc = handledCalls[index];
+
       var stillHere = telephony.calls.some(function hcIterator(call) {
+        return (call == hc.call);
+      });
+
+      stillHere = stillHere ||
+        telephony.conferenceGroup.calls.some(function hcIterator(call) {
         return (call == hc.call);
       });
 
       if (!stillHere) {
         removeCall(index);
       }
-    });
+    }
 
-    // Letting the layout know how many calls we're handling
     if (handledCalls.length === 0) {
       exitCallScreen(false);
     } else {
-      CallScreen.callsCount = handledCalls.length;
+      // Letting the CallScreen know how to display the call duration
+      // (depending on how many calls/conference group are on)
+      var openLines = telephony.calls.length +
+        (telephony.conferenceGroup.calls.length ? 1 : 0);
+
+      CallScreen.bigDuration = (openLines == 1);
+
       if (!displayed && !closing) {
         toggleScreen();
       }
@@ -127,7 +139,7 @@ var CallsHandler = (function callsHandler() {
     }
 
     // No more room
-    if (handledCalls.length >= CALLS_LIMIT) {
+    if (telephony.calls.length > CALLS_LIMIT) {
       new HandledCall(call);
       call.hangUp();
       return;
@@ -293,12 +305,7 @@ var CallsHandler = (function callsHandler() {
     displayed = !displayed;
     animating = true;
 
-    var callScreen = CallScreen.screen;
-    callScreen.classList.toggle('displayed');
-
-    callScreen.addEventListener('transitionend', function trWait() {
-      callScreen.removeEventListener('transitionend', trWait);
-
+    CallScreen.toggle(function transitionend() {
       animating = false;
 
       // We did animate the call screen off the viewport
@@ -339,6 +346,7 @@ var CallsHandler = (function callsHandler() {
   }
 
   function closeWindow() {
+    closing = false;
     window.close();
   }
 
@@ -488,6 +496,12 @@ var CallsHandler = (function callsHandler() {
       return;
     }
 
+    if (telephony.active == telephony.conferenceGroup) {
+      endConferenceCall();
+      CallScreen.hideIncoming();
+      return;
+    }
+
     var callToEnd = telephony.active ||           // connected, incoming
       handledCalls[handledCalls.length - 2].call; // held, incoming
 
@@ -551,7 +565,19 @@ var CallsHandler = (function callsHandler() {
     CallScreen.hideIncoming();
   }
 
+  function endConferenceCall() {
+    telephony.conferenceGroup.calls.forEach(function(call) {
+      call.hangUp();
+    });
+  }
+
   function end() {
+    // If a conference call is active we end all the calls in it
+    if (telephony.active == telephony.conferenceGroup) {
+      endConferenceCall();
+      return;
+    }
+
     // If there is an active call we end this one
     if (telephony.active) {
       telephony.active.hangUp();

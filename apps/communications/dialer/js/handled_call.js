@@ -8,6 +8,14 @@ function HandledCall(aCall) {
 
   aCall.addEventListener('statechange', this);
 
+  aCall.ongroupchange = (function onGroupChange() {
+    if (this.call.group) {
+      CallScreen.moveToGroup(this.node);
+    } else {
+      CallScreen.insertCall(this.node);
+    }
+  }).bind(this);
+
   this.recentsEntry = {
     date: Date.now(),
     type: this.call.state,
@@ -23,6 +31,7 @@ function HandledCall(aCall) {
 
   this.node = document.getElementById('handled-call-template').cloneNode(true);
   this.node.id = '';
+  this.node.classList.add('handled-call');
   this.node.hidden = false;
 
   this.durationNode = this.node.querySelector('.duration');
@@ -239,7 +248,6 @@ HandledCall.prototype.updateDirection = function hc_updateDirection() {
 
 HandledCall.prototype.remove = function hc_remove() {
   this.call.removeEventListener('statechange', this);
-  this.call = null;
   this.photo = null;
 
   clearInterval(this._ticker);
@@ -288,9 +296,13 @@ HandledCall.prototype.disconnected = function hc_disconnected() {
 };
 
 HandledCall.prototype.show = function hc_show() {
-  this.node.hidden = false;
+  if (this.node) {
+    this.node.hidden = false;
+  }
 };
 
 HandledCall.prototype.hide = function hc_hide() {
-  this.node.hidden = true;
+  if (this.node) {
+    this.node.hidden = true;
+  }
 };

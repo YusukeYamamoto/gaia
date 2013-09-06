@@ -85,17 +85,22 @@ contacts.Merger = (function() {
     mergedContact.url = masterContact.url || [];
     mergedContact.note = masterContact.note || [];
 
-    var mergeGivenName =
-      newMergePreservingMaster(mergedContact, 'givenName');
-
-    var mergeFamilyName =
-      newMergePreservingMaster(mergedContact, 'familyName');
-
     matchingContacts.forEach(function(aResult) {
       var theMatchingContact = aResult.matchingContact;
 
-      mergeGivenName(theMatchingContact);
-      mergeFamilyName(theMatchingContact);
+      var givenName = theMatchingContact.givenName;
+      if (Array.isArray(givenName)) {
+        if (mergedContact.givenName.indexOf(givenName[0]) === -1) {
+          mergedContact.givenName.push(givenName[0]);
+        }
+      }
+
+      var familyName = theMatchingContact.familyName;
+      if (Array.isArray(familyName)) {
+        if (mergedContact.familyName.indexOf(familyName[0]) === -1) {
+          mergedContact.familyName.push(familyName[0]);
+        }
+      }
 
       if (!mergedContact.bday && theMatchingContact.bday) {
         mergedContact.bday = theMatchingContact.bday;
@@ -155,7 +160,10 @@ contacts.Merger = (function() {
 
     }); // matchingResults
 
-    mergedContact.name = utils.contactFields.composeName(mergedContact);
+    mergedContact.name = [((mergedContact.givenName[0] ?
+                           mergedContact.givenName[0] : '') + ' ' +
+                          (mergedContact.familyName[0] ?
+                            mergedContact.familyName[0] : '')).trim()];
 
     var fields = ['familyName', 'givenName', 'name', 'org', 'email', 'tel',
                   'bday', 'adr', 'category', 'url', 'note', 'photo'];
@@ -184,26 +192,6 @@ contacts.Merger = (function() {
       window.console.error('Error while saving merged Contact: ',
                            req.error.name);
       typeof callbacks.error === 'function' && callbacks.error(req.error);
-    };
-  }
-
-  function newMergePreservingMaster(master, fieldName) {
-    var targetField = master[fieldName] = (master[fieldName] || []),
-        targetFieldHash = {};
-
-    for (var i = 0, l = targetField.length; i < l; i++) {
-      targetFieldHash[targetField[i]] = true;
-    }
-
-    return function mergePreservingMaster(contactToMerge) {
-      var fieldValue, sourceField = contactToMerge[fieldName] || [];
-      for (var j = 0, l = sourceField.length; j < l; j++) {
-        fieldValue = sourceField[j];
-        if (!targetFieldHash[fieldValue]) {
-          targetField.push(fieldValue);
-          targetFieldHash[fieldValue] = true;
-        }
-      }
     };
   }
 

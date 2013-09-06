@@ -483,9 +483,10 @@ function initKeyboard() {
   window.addEventListener('hashchange', function() {
     console.log('#dbg:keyboard.js:+++hashchange-receive■■■');
     var inputMethodName = window.location.hash.substring(1);
-    setKeyboardName(inputMethodName);
-    resetKeyboard();
-    showKeyboard();
+    setKeyboardName(inputMethodName, function() {
+      resetKeyboard();
+      showKeyboard();
+    });
   }, false);
 
   // Handle resize events
@@ -501,13 +502,13 @@ function initKeyboard() {
   window.addEventListener('mozvisibilitychange', function visibilityHandler() {
     console.log('#dbg:keyboard.js:+++mozvisibilitychange-receive mozHidden: '+ document.mozHidden +'■■■');
     var inputMethodName = window.location.hash.substring(1);
-    setKeyboardName(inputMethodName);
-
-    if (!document.mozHidden && inputContext) {
-      showKeyboard();
-    } else {
-      hideKeyboard();
-    }
+    setKeyboardName(inputMethodName, function() {
+      if (!document.mozHidden && inputContext) {
+        showKeyboard();
+      } else {
+        hideKeyboard();
+      }
+    });
   });
 
   window.navigator.mozInputMethod.oninputcontextchange = function() {
@@ -534,8 +535,12 @@ function handleKeyboardSound() {
   console.log('#dbg:keyboard.js:handleKeyboardSound-E▲▲▲');
 }
 
+<<<<<<< HEAD
 function setKeyboardName(name) {
   console.log('#dbg:keyboard.js:setKeyboardName-S name: ' + name + '▼▼▼');
+=======
+function setKeyboardName(name, callback) {
+>>>>>>> upstream/master
   var keyboard;
 
   if (name in Keyboards) {
@@ -556,13 +561,20 @@ function setKeyboardName(name) {
     }
   }
 
-  if (keyboard.imEngine)
-    inputMethod = InputMethods[keyboard.imEngine];
-
-  if (!inputMethod)
+  if (keyboard.imEngine) {
+    loadIMEngine(name, function() {
+      inputMethod = InputMethods[keyboard.imEngine];
+      callback();
+    });
+  } else {
     inputMethod = defaultInputMethod;
+<<<<<<< HEAD
 
   console.log('#dbg:keyboard.js:setKeyboardName-E▲▲▲');
+=======
+    callback();
+  }
+>>>>>>> upstream/master
 }
 
 // Support function for render
@@ -1668,6 +1680,7 @@ function getKeyCoordinateY(y) {
   return y - yBias;
 }
 
+<<<<<<< HEAD
 // Called from the endPress() function above when the user releases the
 // switch keyboard layout key.
 function switchKeyboard(target) {
@@ -1741,6 +1754,8 @@ function switchKeyboard(target) {
   renderKeyboard(keyboardName);  // And display it.
 }
 
+=======
+>>>>>>> upstream/master
 function switchToNextIME() {
   console.log('#dbg:keyboard.js:switchToNextIME-call■■■');
 
@@ -1810,7 +1825,8 @@ function showKeyboard(state) {
   // If no keyboard has been selected yet, choose the first enabled one.
   // This will also set the inputMethod
   if (!keyboardName) {
-    setKeyboardName(defaultKeyboardName);
+    setKeyboardName(defaultKeyboardName, showKeyboard.bind(this, state));
+    return;
   }
 
   inputContext = navigator.mozInputMethod.inputcontext;
@@ -1919,17 +1935,24 @@ function loadKeyboard(name) {
     loadIMEngine(name);
 }
 
+<<<<<<< HEAD
 function loadIMEngine(name) {
   console.log('#dbg:keyboard.js:loadIMEngine-call name: ' + name + '■■■');
 
+=======
+function loadIMEngine(name, callback) {
+>>>>>>> upstream/master
   var keyboard = Keyboards[name];
   var sourceDir = './js/imes/';
   var imEngine = keyboard.imEngine;
 
   // Same IME Engine could be load by multiple keyboard layouts
   // keep track of it by adding a placeholder to the registration point
-  if (InputMethods[imEngine])
+  if (InputMethods[imEngine]) {
+    if (callback)
+      callback();
     return;
+  }
 
   var script = document.createElement('script');
   script.src = sourceDir + imEngine + '/' + imEngine + '.js';
@@ -1973,8 +1996,13 @@ function loadIMEngine(name) {
 
     var engine = InputMethods[imEngine];
     engine.init(glue);
+<<<<<<< HEAD
     console.log('#dbg:keyboard.js:IMEngineLoaded-E▲▲▲');
 
+=======
+    if (callback)
+      callback();
+>>>>>>> upstream/master
   });
 
   document.body.appendChild(script);

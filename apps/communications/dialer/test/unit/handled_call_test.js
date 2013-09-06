@@ -102,6 +102,10 @@ suite('dialer/handled_call', function() {
         assert.equal(subject.node.id, '');
       });
 
+      test('should have the handled-call class', function() {
+        assert.isTrue(subject.node.classList.contains('handled-call'));
+      });
+
       test('should not be hidden', function() {
         assert.isFalse(subject.node.hidden);
       });
@@ -236,8 +240,8 @@ suite('dialer/handled_call', function() {
       assert.isTrue(mockCall._listenerRemoved);
     });
 
-    test('should nullify the call', function() {
-      assert.isNull(subject.call);
+    test('should keep the call', function() {
+      assert.ok(subject.call);
     });
 
     test('should nullify the photo', function() {
@@ -648,6 +652,49 @@ suite('dialer/handled_call', function() {
       subject.node.hidden = false;
       subject.hide();
       assert.isTrue(subject.node.hidden);
+    });
+
+    suite('when the node got nullified', function() {
+      setup(function() {
+        subject.node = null;
+      });
+
+      test('show() should handle it', function() {
+        subject.show();
+        assert.isTrue(true); // We'll get a JS error otherwise
+      });
+
+      test('hide() should handle it', function() {
+        subject.hide();
+        assert.isTrue(true); // We'll get a JS error otherwise
+      });
+    });
+  });
+
+  suite('ongroupchange', function() {
+    suite('when entering a group', function() {
+      test('should ask the CallScreen to move into the group details',
+      function() {
+        mockCall = new MockCall(String(phoneNumber), 'connected');
+        subject = new HandledCall(mockCall);
+
+        var moveToGroupSpy = this.sinon.spy(MockCallScreen, 'moveToGroup');
+        mockCall.group = this.sinon.stub();
+        mockCall.ongroupchange(mockCall);
+        assert.isTrue(moveToGroupSpy.calledWith(subject.node));
+      });
+    });
+    suite('when leaving a group', function() {
+      test('should ask the CallScreen to move back',
+      function() {
+        mockCall = new MockCall(String(phoneNumber), 'connected');
+        subject = new HandledCall(mockCall);
+
+        var insertCallSpy = this.sinon.spy(MockCallScreen, 'insertCall');
+        mockCall.group = null;
+        mockCall.ongroupchange(mockCall);
+        assert.isTrue(insertCallSpy.calledWith(subject.node));
+      });
     });
   });
 });

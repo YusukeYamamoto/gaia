@@ -579,7 +579,7 @@
     switch (keycode) {
     case SPACE:
       if (Date.now() - lastSpaceTimestamp < DOUBLE_SPACE_TIME)
-        fixPunctuation(PERIOD);
+        fixPunctuation(PERIOD, SPACE);
       else
         handleKey(keycode);
       break;
@@ -600,22 +600,28 @@
     }
 
     // In both the space space and the space period case we call this function
+<<<<<<< HEAD
     function fixPunctuation(keycode) {
      console.log('#dbg:latin.js:fixPunctuation-S keycode:' + keycode + '▼▼▼');
 
+=======
+    // Second argument is the character reverting to if cancelling auto
+    // punctuation
+    // If the second argument is omitted, assume it is the same as the first
+    function fixPunctuation(keycode, revertToKeycode) {
+>>>>>>> upstream/master
       keyboard.sendKey(BACKSPACE);
       keyboard.sendKey(keycode);
       keyboard.sendKey(SPACE);
 
       var newtext = String.fromCharCode(keycode) + ' ';
-
       inputText = inputText.substring(0, cursor - 1) +
         newtext +
         inputText.substring(cursor);
       cursor++;
 
       // Remember this change so we can revert it on backspace
-      revertTo = ' ';
+      revertTo = ' ' + String.fromCharCode(revertToKeycode || keycode);
       revertFrom = newtext;
       justAutoCorrected = false;
       console.log('#dbg:latin.js:fixPunctuation-E▲▲▲');
