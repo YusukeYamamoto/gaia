@@ -600,16 +600,11 @@
     }
 
     // In both the space space and the space period case we call this function
-<<<<<<< HEAD
-    function fixPunctuation(keycode) {
-     console.log('#dbg:latin.js:fixPunctuation-S keycode:' + keycode + '▼▼▼');
-
-=======
     // Second argument is the character reverting to if cancelling auto
     // punctuation
     // If the second argument is omitted, assume it is the same as the first
     function fixPunctuation(keycode, revertToKeycode) {
->>>>>>> upstream/master
+     console.log('#dbg:latin.js:fixPunctuation-S keycode:' + keycode + '▼▼▼');
       keyboard.sendKey(BACKSPACE);
       keyboard.sendKey(keycode);
       keyboard.sendKey(SPACE);
