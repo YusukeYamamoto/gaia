@@ -1223,6 +1223,7 @@ function hideKeyboardLayoutMenu() {
 // Test if an HTML node is a normal key
 function isNormalKey(key) {
   console.log('#dbg:keyboard.js:isNormalKey-call■■■');
+  console.dir(key);
 
   var keyCode = parseInt(key.dataset.keycode);
   return keyCode || key.dataset.selection || key.dataset.compositekey;
@@ -1260,14 +1261,14 @@ function onTouchStart(evt) {
     // show the alternate characters menu for a key.
     target.addEventListener('touchmove', function(){
 
-      onTouchMove();
+      onTouchMove(evt);
     });
     target.addEventListener('touchend', function(){
-      onTouchEnd();
+      onTouchEnd(evt);
     });
     target.addEventListener('touchcancel', function(){
 
-      onTouchEnd();
+      onTouchEnd(evt);
     });
 
     touchedKeys[touchId] = { target: target, x: touch.pageX, y: touch.pageY };
@@ -1307,13 +1308,15 @@ function onTouchMove(evt) {
 }
 
 function onTouchEnd(evt) {
-  console.log('#dbg:keyboard.js:onTouchEnd-call■■■');
+  console.log('#dbg:keyboard.js:onTouchEnd-S▼▼▼');
+  console.dir(evt);
 
   // Prevent a mouse event from firing
   evt.preventDefault();
   touchCount = evt.touches.length;
 
   handleTouches(evt, function handleTouchEnd(touch, touchId) {
+    console.log('#dbg:keyboard.js:handleTouchEnd-S▼▼▼');
 
     // Swipe down can trigger hiding the keyboard
     if (touchStartCoordinate && touchStartCoordinate.touchId == touchId) {
@@ -1339,14 +1342,17 @@ function onTouchEnd(evt) {
         clearTimeout(menuTimeout);
 
         window.navigator.mozKeyboard.removeFocus();
+        console.log('#dbg:keyboard.js:handleTouchEnd-E_return▲▲▲');
         return;
       }
     }
 
     // Because of bug 822558, we sometimes get two touchend events,
     // so we should bail if we've already handled one touchend.
-    if (!touchedKeys[touchId])
+    if (!touchedKeys[touchId]){
+      console.log('#dbg:keyboard.js:handleTouchEnd-E_return▲▲▲');
       return;
+    }
 
     // Remove the event listeners from the original target.
     var target = touch.target;
@@ -1357,7 +1363,9 @@ function onTouchEnd(evt) {
     // Send the updated target to endPress.
     endPress(touchedKeys[touchId].target, touch, touchId);
     delete touchedKeys[touchId];
+    console.log('#dbg:keyboard.js:handleTouchEnd-E▲▲▲');
   });
+  console.log('#dbg:keyboard.js:onTouchEnd-E▲▲▲');
 }
 
 // Helper function to iterate through a touch event's
@@ -1397,12 +1405,14 @@ function onMouseDown(evt) {
 // The coords object can either be a mouse event or a touch. We just expect the
 // coords object to have clientX, clientY, pageX, and pageY properties.
 function startPress(target, coords, touchId) {
-  console.log('#dbg:keyboard.js:startPress-call■■■');
+  console.log('#dbg:keyboard.js:startPress-call▼▼▼');
+  console.trace();
 
   if (!isNormalKey(target))
     return;
 
   var keyCode = parseInt(target.dataset.keycode);
+  console.log('#dbg:keyboard.js:keycode: ' + keycode + 'target.dataset.keycode: ' + target.dataset.keycode );
 
   // Feedback
   var isSpecialKey = specialCodes.indexOf(keyCode) >= 0 || keyCode < 0;
@@ -1429,6 +1439,7 @@ function startPress(target, coords, touchId) {
 
     }, REPEAT_TIMEOUT);
   }
+  console.log('#dbg:keyboard.js:startPress-call▲▲▲');
 }
 
 function inMenuLockedArea(lockedArea, coords) {
@@ -1529,7 +1540,7 @@ function onMouseUp(evt) {
 
 // The user is releasing a key so the key has been pressed. The meat is here.
 function endPress(target, coords, touchId) {
-  console.log('#dbg:keyboard.js:endPress-call■■■');
+  console.log('#dbg:keyboard.js:endPress-S▼▼▼');
 
   clearTimeout(deleteTimeout);
   clearInterval(deleteInterval);
@@ -1539,8 +1550,10 @@ function endPress(target, coords, touchId) {
   hideAlternatives();
   hideKeyboardLayoutMenu();
 
-  if (!target || !isNormalKey(target))
+  if (!target || !isNormalKey(target)){
+    console.log('#dbg:keyboard.js:endPress-E_return▲▲▲');
     return;
+  }
 
   // IME candidate selected
   var dataset = target.dataset;
@@ -1554,6 +1567,7 @@ function endPress(target, coords, touchId) {
     }
 
     IMERender.highlightKey(target);
+    console.log('#dbg:keyboard.js:endPress-E_return▲▲▲');
     return;
   }
 
@@ -1563,14 +1577,17 @@ function endPress(target, coords, touchId) {
   // trigger keypress on key release.
   if (target.dataset.ignoreEndPress) {
     delete target.dataset.ignoreEndPress;
+    console.log('#dbg:keyboard.js:endPress-E_return▲▲▲');
     return;
   }
 
   var keyCode = parseInt(target.dataset.keycode);
 
   // Delete is a special key, it reacts when pressed not released
-  if (keyCode == KeyEvent.DOM_VK_BACK_SPACE)
+  if (keyCode == KeyEvent.DOM_VK_BACK_SPACE){
+    console.log('#dbg:keyboard.js:endPress-E_return▲▲▲');
     return;
+  }
 
   // Reset the flag when a non-space key is pressed,
   // used in space key double tap handling
@@ -1582,16 +1599,19 @@ function endPress(target, coords, touchId) {
 
   case BASIC_LAYOUT:
     // Return to default page
+    console.log('#dbg:keyboard.js:endPress keycode is BASIC_LAYOUT');
     setLayoutPage(LAYOUT_PAGE_DEFAULT);
     break;
 
   case ALTERNATE_LAYOUT:
     // Switch to numbers+symbols page
+    console.log('#dbg:keyboard.js:endPress keycode is ALTERNATE_LAYOUT');
     setLayoutPage(LAYOUT_PAGE_SYMBOLS_I);
     break;
 
   case KeyEvent.DOM_VK_ALT:
     // alternate between pages 1 and 2 of SYMBOLS
+    console.log('#dbg:keyboard.js:endPress keycode is KeyEvent.DOM_VK_ALT');
     if (layoutPage === LAYOUT_PAGE_SYMBOLS_I) {
       setLayoutPage(LAYOUT_PAGE_SYMBOLS_II);
     } else {
@@ -1603,12 +1623,14 @@ function endPress(target, coords, touchId) {
   case SWITCH_KEYBOARD:
     // If the user selected a new keyboard layout or quickly tapped the
     // switch layouts button then switch to a new keyboard layout
+    console.log('#dbg:keyboard.js:endPress keycode is SWITCH_KEYBOARD');
     if (target.dataset.keyboard || !wasShowingKeyboardLayoutMenu)
       switchToNextIME();
     break;
 
     // Expand / shrink the candidate panel
   case TOGGLE_CANDIDATE_PANEL:
+    console.log('#dbg:keyboard.js:endPress keycode is TOGGLE_CANDIDATE_PANEL');
     if (IMERender.ime.classList.contains('candidate-panel')) {
       IMERender.ime.classList.remove('candidate-panel');
       IMERender.ime.classList.add('full-candidate-panel');
@@ -1622,6 +1644,7 @@ function endPress(target, coords, touchId) {
   case KeyEvent.DOM_VK_CAPS_LOCK:
 
     // Already waiting for caps lock
+    console.log('#dbg:keyboard.js:endPress keycode is KeyEvent.DOM_VK_CAPS_LOCK');
     if (isWaitingForSecondTap) {
       isWaitingForSecondTap = false;
 
@@ -1645,6 +1668,7 @@ function endPress(target, coords, touchId) {
 
     // Normal key
   default:
+    console.log('#dbg:keyboard.js:endPress keycode is ' + keyCode );
     if (target.dataset.compositekey) {
       // Keys with this attribute set send more than a single character
       // Like ".com" or "2nd" or (in Catalan) "l·l".
@@ -1658,6 +1682,7 @@ function endPress(target, coords, touchId) {
     }
     break;
   }
+  console.log('#dbg:keyboard.js:endPress-E_return▲▲▲');
 }
 
 function getKeyCoordinateY(y) {

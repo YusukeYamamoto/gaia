@@ -419,7 +419,7 @@
   // auto-correction or auto-punctuation.
   function handleKey(keycode) {
     // First, update our internal state
-    console.log('#dbg:latin.js:handleKey-S keycode:' + keycode + ' ▼▼▼');
+    console.log('#dbg:latin.js:handleKey-S keycode: ' + keycode + ' ▼▼▼');
 
     if (keycode === BACKSPACE) {
       if (selection) {
@@ -454,6 +454,9 @@
       }
       cursor++;
     }
+
+    console.log('#dbg:latin.js:inputText : ' + inputText );
+    console.dir(inputText);
 
     // Generate the key event
     keyboard.sendKey(keycode);
