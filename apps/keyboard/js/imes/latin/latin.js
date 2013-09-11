@@ -704,6 +704,7 @@
   // update our internal state to match.
   function select(word) {
     console.log('#dbg:latin.js:select-S word:' + word + '▼▼▼');
+    console.trace();
 
     var oldWord = wordBeforeCursor();
 

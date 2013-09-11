@@ -1412,7 +1412,7 @@ function startPress(target, coords, touchId) {
     return;
 
   var keyCode = parseInt(target.dataset.keycode);
-  console.log('#dbg:keyboard.js:keycode: ' + keycode + 'target.dataset.keycode: ' + target.dataset.keycode );
+  console.log('#dbg:keyboard.js:keycode: ' + keyCode + 'target.dataset.keycode: ' + target.dataset.keycode );
 
   // Feedback
   var isSpecialKey = specialCodes.indexOf(keyCode) >= 0 || keyCode < 0;
@@ -1747,7 +1747,7 @@ function sendKey(keyCode) {
 }
 
 function replaceSurroundingText(text, offset, length) {
-  console.log('#dbg:keyboard.js:replaceSurroundingText-call■■■');
+  console.log('#dbg:keyboard.js:replaceSurroundingText-call text:'+ text + ' offset:'+ offset +' length:' + length + ' ■■■');
 
   if (inputContext) {
     inputContext.replaceSurroundingText(text, offset, length);
