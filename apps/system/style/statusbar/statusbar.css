@@ -19,6 +19,7 @@ body, html {
 
   padding: 0.2rem 0;
   -moz-box-sizing: border-box;
+  -moz-user-focus: ignore;
 }
 
 #screen.locked:not(.attention) #statusbar{
@@ -277,6 +278,10 @@ body, html {
 
 .sb-icon-headphones {
   background-position: -18.9rem -4rem;
+}
+
+.sb-icon-bluetooth-headphones {
+  background-position: -21rem -8rem;
 }
 
 .sb-icon-geolocation {

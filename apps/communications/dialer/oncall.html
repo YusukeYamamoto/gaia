@@ -5,7 +5,10 @@
     <meta http-equiv="pragma" content="no-cache">
     <title>Dialer</title>
     <link rel="stylesheet" type="text/css" href="/dialer/style/oncall.css">
+    <link rel="stylesheet" type="text/css" href="/dialer/style/oncall_status_bar.css">
     <link rel="stylesheet" type="text/css" href="/dialer/style/keypad.css">
+    <link rel="stylesheet" type="text/css" href="/dialer/style/status.css">
+    <link rel="stylesheet" type="text/css" href="/shared/style/status.css">
 
     <!-- Localization -->
     <script defer type="text/javascript" src="/shared/js/lazy_loader.js"></script>
@@ -44,36 +47,39 @@
   <body>
     <article id="call-screen" data-layout>
       <div id="locked-contact-photo"></div>
-      <article id="calls" data-count="0">
+      <article id="calls" data-count="0" data-cdma-call-waiting="false">
         <section id="handled-call-template" hidden>
-          <div class="numberWrapper">
+          <div class="switch-calls">
+            <span role="button" id="switch-calls-button">
+            </span>
+          </div>
+          <div class="numberWrapper direction-status-bar">
             <div class="number font-light"></div>
           </div>
           <div class="fake-number font-light"></div>
           <div class="additionalContactInfo"></div>
+          <div class="shadow">
+          </div>
           <div class="duration">
             <span class="font-light"></span>
-            <div class="direction">
-              <div></div>
-            </div>
+            <div class="direction"></div>
           </div>
         </section>
         <section id="group-call" hidden>
           <div class="numberWrapper">
-            <div id="group-call-label" class="number font-light"></div>
+            <div id="group-call-label" class="number font-light direction"></div>
           </div>
           <div id="group-call-summary" class="additionalContactInfo"></div>
           <div class="duration">
             <span class="font-light"></span>
-            <div class="direction">
-              <div></div>
-            </div>
+            <div class="direction"></div>
           </div>
         </section>
       </article>
       <article id="group-call-details">
       </article>
       <article id="main-container">
+
         <div id="actions-container">
           <div id="swiper-wrapper">
             <div id="swiper-area"></div>
@@ -91,6 +97,9 @@
               </div>
             </div>
           </div>
+          <section id="statusMsg" role="status">
+            <p></p>
+          </section>
           <footer id="call-options">
             <section id="co-advanced">
               <div class="grid-wrapper grid">

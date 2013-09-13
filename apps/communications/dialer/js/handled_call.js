@@ -3,15 +3,17 @@
 function HandledCall(aCall) {
   this._ticker = null;
   this.photo = null;
-
+  this._leftGroup = false;
   this.call = aCall;
 
   aCall.addEventListener('statechange', this);
 
   aCall.ongroupchange = (function onGroupChange() {
     if (this.call.group) {
+      this._leftGroup = false;
       CallScreen.moveToGroup(this.node);
     } else {
+      this._leftGroup = true;
       CallScreen.insertCall(this.node);
     }
   }).bind(this);
@@ -36,7 +38,6 @@ function HandledCall(aCall) {
 
   this.durationNode = this.node.querySelector('.duration');
   this.durationChildNode = this.node.querySelector('.duration span');
-  this.directionNode = this.node.querySelector('.duration .direction');
   this.numberNode = this.node.querySelector('.numberWrapper .number');
   this.additionalInfoNode = this.node.querySelector('.additionalContactInfo');
 
@@ -109,9 +110,20 @@ HandledCall.prototype.startTimer = function hc_startTimer() {
 
 HandledCall.prototype.updateCallNumber = function hc_updateCallNumber() {
   var number = this.call.number;
+  var secondNumber = this.call.secondNumber;
   var node = this.numberNode;
   var additionalInfoNode = this.additionalInfoNode;
   var self = this;
+
+  /* If we have a second call waiting in CDMA mode then we don't know which
+   * number is currently active */
+  if (secondNumber) {
+    LazyL10n.get(function localized(_) {
+      node.textContent = _('switch-calls');
+      self._cachedInfo = _('switch-calls');
+    });
+    return;
+  }
 
   if (!number) {
     LazyL10n.get(function localized(_) {
@@ -236,14 +248,16 @@ HandledCall.prototype.restorePhoneNumber =
 };
 
 HandledCall.prototype.updateDirection = function hc_updateDirection() {
-  var className;
+  var classList = this.node.classList;
   if (this._initialState == 'incoming') {
-    className = (this.call.state == 'connected') ? 'ongoing-in' : 'incoming';
+    classList.add('incoming');
   } else {
-    className = (this.call.state == 'connected') ? 'ongoing-out' : 'outgoing';
+    classList.add('outgoing');
   }
 
-  this.directionNode.classList.add(className);
+  if (this.call.state == 'connected') {
+    classList.add('ongoing');
+  }
 };
 
 HandledCall.prototype.remove = function hc_remove() {
@@ -275,6 +289,15 @@ HandledCall.prototype.connected = function hc_connected() {
 
 HandledCall.prototype.disconnected = function hc_disconnected() {
   var entry = this.recentsEntry;
+  var self = this;
+  if (this._leftGroup) {
+    LazyL10n.get(function localized(_) {
+      CallScreen.showStatusMessage(_('caller-left-call',
+        {caller: self._cachedInfo}));
+    });
+    self._leftGroup = false;
+  }
+
   if (entry) {
     if (entry.contactInfo) {
       if (typeof entry.contactInfo.contact === 'string') {

@@ -6,7 +6,6 @@ requireApp('communications/dialer/test/unit/mock_calls_handler.js');
 requireApp('communications/dialer/test/unit/mock_keypad.js');
 requireApp('communications/dialer/test/unit/mock_utils.js');
 requireApp('communications/dialer/test/unit/mock_l10n.js');
-
 requireApp('communications/dialer/test/unit/mock_call.js');
 
 requireApp('communications/dialer/js/handled_call.js');
@@ -131,11 +130,6 @@ suite('dialer/handled_call', function() {
         assert.equal(subject.durationChildNode, durationChildNode);
         assert.isTrue(durationChildNode.classList.contains('font-light'));
       });
-
-      test('should have a direction node', function() {
-        var directionNode = subject.node.querySelector('.duration .direction');
-        assert.equal(subject.directionNode, directionNode);
-      });
     });
 
     test('duration outgoing', function() {
@@ -149,10 +143,6 @@ suite('dialer/handled_call', function() {
 
       assert.ok(subject.durationChildNode);
       assert.equal(subject.durationChildNode.textContent, 'incoming');
-    });
-
-    test('direction', function() {
-      assert.ok(subject.directionNode);
     });
 
     test('number', function() {
@@ -170,7 +160,7 @@ suite('dialer/handled_call', function() {
 
       assert.isTrue(MockCallScreen.mEnableKeypadCalled);
       assert.isFalse(subject.node.hidden);
-      assert.isTrue(subject.directionNode.classList.contains('ongoing-out'));
+      assert.isTrue(subject.node.classList.contains('ongoing'));
     });
   });
 
@@ -229,35 +219,53 @@ suite('dialer/handled_call', function() {
       mockCall._connect();
       MockCallScreen.mute();
       MockCallScreen.turnSpeakerOn();
-      mockCall._disconnect();
     });
 
-    test('should save the recents entry', function() {
-      assert.equal(subject.recentsEntry, MockCallsHandler.mLastEntryAdded);
+    suite('from a regular call', function() {
+      setup(function() {
+        mockCall._disconnect();
+      });
+      test('should save the recents entry', function() {
+        assert.equal(subject.recentsEntry, MockCallsHandler.mLastEntryAdded);
+      });
+
+      test('should remove listener on the call', function() {
+        assert.isTrue(mockCall._listenerRemoved);
+      });
+
+      test('should keep the call', function() {
+        assert.ok(subject.call);
+      });
+
+      test('should nullify the photo', function() {
+        assert.isNull(subject.photo);
+      });
+
+      test('should clear the ticker', function() {
+        assert.equal(subject._ticker, null);
+      });
+
+      test('should remove the node from the dom', function() {
+        assert.isNull(node.parentNode);
+      });
+
+      test('should nullify the node', function() {
+        assert.isNull(subject.node);
+      });
+      test('it does not show the banner', function() {
+        assert.isFalse(MockCallScreen.mShowStatusMessageCalled);
+      });
     });
 
-    test('should remove listener on the call', function() {
-      assert.isTrue(mockCall._listenerRemoved);
-    });
-
-    test('should keep the call', function() {
-      assert.ok(subject.call);
-    });
-
-    test('should nullify the photo', function() {
-      assert.isNull(subject.photo);
-    });
-
-    test('should clear the ticker', function() {
-      assert.equal(subject._ticker, null);
-    });
-
-    test('should remove the node from the dom', function() {
-      assert.isNull(node.parentNode);
-    });
-
-    test('should nullify the node', function() {
-      assert.isNull(subject.node);
+    suite('from a group', function() {
+      setup(function() {
+        mockCall.group = null;
+        mockCall.ongroupchange(mockCall);
+        mockCall._disconnect();
+      });
+      test('show the banner', function() {
+        assert.isTrue(MockCallScreen.mShowStatusMessageCalled);
+      });
     });
   });
 
@@ -297,12 +305,30 @@ suite('dialer/handled_call', function() {
 
   suite('call direction', function() {
     test('before connexion', function() {
-      assert.isTrue(subject.directionNode.classList.contains('outgoing'));
+      assert.isTrue(subject.node.classList.contains('outgoing'));
     });
 
     test('after connexion', function() {
       mockCall._connect();
-      assert.isTrue(subject.directionNode.classList.contains('ongoing-out'));
+      assert.isTrue(subject.node.classList.contains('ongoing'));
+      assert.isTrue(subject.node.classList.contains('outgoing'));
+    });
+
+    suite('incoming call', function() {
+      setup(function() {
+        mockCall = new MockCall('888', 'incoming');
+        subject = new HandledCall(mockCall);
+      });
+
+      test('before connexion', function() {
+        assert.isTrue(subject.node.classList.contains('incoming'));
+      });
+
+      test('after connexion', function() {
+        mockCall._connect();
+        assert.isTrue(subject.node.classList.contains('ongoing'));
+        assert.isTrue(subject.node.classList.contains('incoming'));
+      });
     });
   });
 
@@ -524,6 +550,14 @@ suite('dialer/handled_call', function() {
     assert.equal(subject.numberNode.textContent, 'withheld-number');
   });
 
+  test('should display switch-calls l10n key', function() {
+    mockCall = new MockCall('12345', 'connected');
+    mockCall.secondNumber = '67890';
+    subject = new HandledCall(mockCall);
+
+    assert.equal(subject.numberNode.textContent, 'switch-calls');
+  });
+
   test('should display emergency number label', function() {
     mockCall = new MockCall('112', 'dialing');
     mockCall.emergency = true;
@@ -672,29 +706,29 @@ suite('dialer/handled_call', function() {
   });
 
   suite('ongroupchange', function() {
-    suite('when entering a group', function() {
-      test('should ask the CallScreen to move into the group details',
-      function() {
-        mockCall = new MockCall(String(phoneNumber), 'connected');
-        subject = new HandledCall(mockCall);
+    var moveToGroupSpy;
+    var insertCallSpy;
 
-        var moveToGroupSpy = this.sinon.spy(MockCallScreen, 'moveToGroup');
-        mockCall.group = this.sinon.stub();
-        mockCall.ongroupchange(mockCall);
-        assert.isTrue(moveToGroupSpy.calledWith(subject.node));
-      });
+    setup(function() {
+      mockCall = new MockCall(String(phoneNumber), 'connected');
+      subject = new HandledCall(mockCall);
+
+      moveToGroupSpy = this.sinon.spy(MockCallScreen, 'moveToGroup');
+      insertCallSpy = this.sinon.spy(MockCallScreen, 'insertCall');
     });
-    suite('when leaving a group', function() {
-      test('should ask the CallScreen to move back',
-      function() {
-        mockCall = new MockCall(String(phoneNumber), 'connected');
-        subject = new HandledCall(mockCall);
 
-        var insertCallSpy = this.sinon.spy(MockCallScreen, 'insertCall');
-        mockCall.group = null;
-        mockCall.ongroupchange(mockCall);
-        assert.isTrue(insertCallSpy.calledWith(subject.node));
-      });
+    test('When entering a group, it should ask ' +
+         'the CallScreen to move into the group details', function() {
+      mockCall.group = this.sinon.stub();
+      mockCall.ongroupchange(mockCall);
+      assert.isTrue(moveToGroupSpy.calledWith(subject.node));
+    });
+
+    test('when leaving a group, it should ask the CallScreen to move back',
+    function() {
+      mockCall.group = null;
+      mockCall.ongroupchange(mockCall);
+      assert.isTrue(insertCallSpy.calledWith(subject.node));
     });
   });
 });

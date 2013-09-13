@@ -21,7 +21,10 @@
     <script defer src="shared/js/settings_url.js"></script>
     <script defer src="shared/js/advanced_timer.js"></script>
     <script defer src="shared/js/lazy_loader.js"></script>
-    <!-- <script defer src="shared/js/keyboard_helper.js"></script> -->
+    <!-- 
+    <script defer src="shared/js/keyboard_helper.js"></script>
+    <script defer src="shared/js/template.js"></script>
+    -->
 
     <!-- Wrapper -->
     <link rel="stylesheet" type="text/css" href="style/wrapper/wrapper.css">
@@ -46,6 +49,7 @@
     <!-- Include shared resources
     <link rel="resource" type="application/json" href="shared/resources/apn.json"/>
     <link rel="resource" type="image/png" href="shared/resources/branding/initlogo.png"/>
+    <link rel="resource" type="image/png" href="shared/resources/branding/initlogo_large.png"/>
     -->
 
     <link rel="resource" type="image/png" href="shared/resources/branding/Browser.png"/>
@@ -143,6 +147,9 @@
     <!-- Authentication Dialog-->
     <script defer src="js/authentication_dialog.js"></script>
 
+    <!-- Carrier info notifier, shared by CDMA and Cell Broadcast -->
+    <script defer src="js/carrier_info_notifier.js"></script>
+
     <!-- Cell Broadcast System -->
     <script defer src="js/cell_broadcast_system.js"></script>
 
@@ -219,6 +226,7 @@
     <script defer src="js/identity.js"></script>
 
     <!-- Operator Variant Mechanism -->
+    <script defer src="shared/js/operator_variant_helper.js"></script>
     <script defer src="js/operator_variant/operator_variant.js"></script>
 
     <!-- Crash Reporter -->
@@ -244,8 +252,6 @@
     <script defer src="js/error.js"></script>
     <script defer src="js/window.js"></script>
     <script defer src="js/wrapper_factory.js"></script>
-    <script defer src="js/homescreen_window.js"></script>
-    <script defer src="js/homescreen_launcher.js"></script>
     <script defer src="js/window_manager.js"></script>
     <script defer src="js/app_window_factory.js"></script>
 
@@ -321,8 +327,13 @@
       #poweroff-splash > video.hide {
         opacity: 0;
       }
-    </style>
 
+      @media (min-width: 1200px) and (orientation: landscape) {
+        #os-logo {
+          background: #000 url('shared/resources/branding/initlogo_large.png') no-repeat center / cover;
+        }
+      }
+    </style>
   </head>
 
   <body role="application">
@@ -353,6 +364,7 @@
         <div id="statusbar-signal" class="sb-icon sb-icon-signal"
           data-level="5" hidden></div>
         <div id="statusbar-headphones" class="sb-icon sb-icon-headphones" hidden></div>
+        <div id="statusbar-bluetooth-headphones" class="sb-icon sb-icon-bluetooth-headphones" hidden></div>
 
         <!-- Permissions -->
         <div id="statusbar-tethering" class="sb-icon sb-icon-tethering" hidden></div>
@@ -418,6 +430,15 @@
           </div>
           <!-- bluetooth transfer -->
           <div id="bluetooth-transfer-status-list">
+          </div>
+          <!-- Another entry to show IME list when the keyboard is activated -->
+          <div id="keyboard-show-ime-list">
+            <div class="fake-notification">
+                <div class="message">
+                </div>
+                <div class="tip">
+                </div>
+            </div>
           </div>
 
           <div id="desktop-notifications-container">
@@ -682,7 +703,7 @@
             </ol>
           </section>
           <menu id="select-options-buttons">
-            <button class="value-option-confirm affirmative full" data-type="ok" data-l10n-id="ok">Ok</button>
+            <button class="value-option-confirm affirmative full" data-type="ok" data-l10n-id="ok">OK</button>
           </menu>
         </form>
 
@@ -708,7 +729,7 @@
           </div>
           <menu id="time-picker-buttons">
             <button class="value-selector-cancel" data-type="cancel" data-l10n-id="cancel">Cancel</button>
-            <button class="value-selector-confirm affirmative" data-type="ok" data-l10n-id="ok">Ok</button>
+            <button class="value-selector-confirm affirmative" data-type="ok" data-l10n-id="ok">OK</button>
           </menu>
         </div>
 
@@ -735,7 +756,7 @@
           </div>
           <menu id="spin-date-picker-buttons" data-items="2">
             <button class="value-selector-cancel" data-type="cancel" data-l10n-id="cancel">Cancel</button>
-            <button class="value-option-confirm affirmative" data-type="ok" data-l10n-id="ok">Ok</button>
+            <button class="value-option-confirm affirmative" data-type="ok" data-l10n-id="ok">OK</button>
           </menu>
         </div>
       </div>
@@ -844,7 +865,7 @@
       <form id="emergency-callback-dialog" role="dialog" data-type="confirm"
             data-z-index-level="emergency-callback-dialog" class="generic-dialog">
         <section>
-          <h1 data-l10n-id="confirmation">Confirmation</h1>
+          <h1 data-l10n-id="confirm">Confirm</h1>
           <p id="emergency-callback-dialog-wrapper">
             <img id="emergency-callback-icon"/>
             <strong data-l10n-id="emergency-callback-mode">Emergency call back mode</strong>
@@ -854,7 +875,7 @@
         </section>
         <menu data-items="2">
           <button type="reset" id="emergency-callback-stay-button" data-l10n-id="cancel">Cancel</button>
-          <button class="recommend" type="button" id="emergency-callback-exit-button" data-l10n-id="Ok">ok</button>
+          <button class="recommend" type="button" id="emergency-callback-exit-button" data-l10n-id="ok">OK</button>
         </menu>
       </form>
 
@@ -871,6 +892,45 @@
           <button id="updates-viaDataConnection-notnow-button" type="reset" data-l10n-id="notNow">Not Now</button>
           <button id="updates-viaDataConnection-download-button" type="submit" data-l10n-id="download">Download</button>
         </menu>
+      </form>
+
+      <form id="setup-installed-app-dialog" class='setup-installed-app-dialog'
+            data-type="confirm" role="dialog"
+            data-z-index-level="setup-installed-app-dialog">
+        <section>
+          <h1 id="setup-app-name"></h1>
+          <p id="setup-app-description"></p>
+          <menu>
+            <button id="setup-cancel-button" type="button" data-l10n-id="later">Later</button>
+            <button id="setup-confirm-button" class="recommend" type="button" data-l10n-id="setup">Setup</button>
+          </menu>
+        </section>
+      </form>
+
+      <form id="ime-layout-dialog" class="ime-layout-dialog"
+            data-type="confirm" role="dialog"
+            data-z-index-level="ime-layout-dialog">
+        <section>
+          <h1 data-l10n-id="ime-addkeyboards">Add keyboards</h1>
+          <!-- template for selecting IME layout after 3rd-party keyboard installed -->
+          <div id="ime-list-template" hidden>
+            <!--
+            <li>
+              <a>${displayName}</a>
+              <label class="pack-checkbox ime">
+                <input type="checkbox" name="keyboards" value="${imeName}">
+                <span></span>
+              </label>
+            </li>
+            -->
+          </div>
+          <ul id="ime-list">
+          </ul>
+          <menu>
+            <button id="ime-cancel-button" type="button" data-l10n-id="cancel">Cancel</button>
+            <button id="ime-confirm-button" class="recommend" type="button" data-l10n-id="confirm">Confirm</button>
+          </menu>
+        </section>
       </form>
 
       <div id="lockscreen-camera" data-z-index-level="lockscreen-camera"></div>
@@ -980,7 +1040,7 @@
             <p id="icc-alert-msg"></p>
           </section>
           <menu>
-            <button type="button" data-l10n-id="ok" id="icc-alert-btn" class="recommend full">Ok</button>
+            <button type="button" data-l10n-id="ok" id="icc-alert-btn" class="recommend full">OK</button>
           </menu>
         </form>
         <form role="dialog" class="generic-dialog" data-type="confirm" id="icc-confirm">
@@ -989,9 +1049,9 @@
             <p id="icc-confirm-msg"></p>
           </section>
           <menu>
-              <button type="button" data-l10n-id="close" id="icc-confirm-btn_close">Close</button>
-              <button type="button" data-l10n-id="back" id="icc-confirm-btn_back">Back</button>
-              <button type="button" data-l10n-id="ok" id="icc-confirm-btn" class="recommend">Ok</button>
+            <button type="button" data-l10n-id="close" id="icc-confirm-btn_close">Close</button>
+            <button type="button" data-l10n-id="back" id="icc-confirm-btn_back">Back</button>
+            <button type="button" data-l10n-id="ok" id="icc-confirm-btn" class="recommend">OK</button>
           </menu>
         </form>
         <form role="dialog" class="generic-dialog" data-type="confirm" id="icc-asyncconfirm">
@@ -1014,7 +1074,7 @@
               <button type="button" data-l10n-id="help" id="icc-input-btn_help">Help</button>
               <button type="button" data-l10n-id="back" id="icc-input-btn_back">Back</button>
               <span class="yesnodisabled">
-                <button type="button" data-l10n-id="ok" id="icc-input-btn" class="recommend">Ok</button>
+                <button type="button" data-l10n-id="ok" id="icc-input-btn" class="recommend">OK</button>
               </span>
               <span class="yesnoenabled">
                 <button type="button" data-l10n-id="no" id="icc-input-btn_no">No</button>

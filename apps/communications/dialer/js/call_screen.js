@@ -31,8 +31,27 @@ var CallScreen = {
   incomingIgnore: document.getElementById('incoming-ignore'),
   lockedContactPhoto: document.getElementById('locked-contact-photo'),
 
-  set bigDuration(enabled) {
+  statusMessage: document.getElementById('statusMsg'),
+  showStatusMessage: function cs_showStatusMesssage(text) {
+    var STATUS_TIME = 2000;
+    var self = this;
+    self.statusMessage.querySelector('p').textContent = text;
+    self.statusMessage.classList.add('visible');
+    self.statusMessage.addEventListener('transitionend', function tend() {
+      self.statusMessage.removeEventListener('transitionend', tend);
+      setTimeout(function hide() {
+        self.statusMessage.classList.remove('visible');
+      }, STATUS_TIME);
+    });
+  },
+
+  set singleLine(enabled) {
+    this.calls.classList.toggle('single-line', enabled);
     this.calls.classList.toggle('big-duration', enabled);
+  },
+
+  set cdmaCallWaiting(enabled) {
+    this.calls.dataset.cdmaCallWaiting = enabled;
   },
 
   init: function cs_init() {
@@ -84,6 +103,7 @@ var CallScreen = {
       return;
     }
 
+    /* We need CSS transitions for the status bar state and the regular state */
     screen.addEventListener('transitionend', function trWait() {
       screen.removeEventListener('transitionend', trWait);
       if (typeof(callback) == 'function') {
@@ -133,11 +153,13 @@ var CallScreen = {
 
   toggleMute: function cs_toggleMute() {
     this.muteButton.classList.toggle('active-state');
+    this.calls.classList.toggle('muted');
     CallsHandler.toggleMute();
   },
 
   unmute: function cs_unmute() {
     this.muteButton.classList.remove('active-state');
+    this.calls.classList.remove('muted');
     CallsHandler.unmute();
   },
 

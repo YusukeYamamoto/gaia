@@ -483,9 +483,11 @@ var Contacts = (function() {
       callback();
     } else {
       Contacts.view('Settings', function viewLoaded() {
-        settingsReady = true;
-        contacts.Settings.init();
-        callback();
+        LazyLoader.load(['/shared/js/icc_helper.js'], function() {
+          settingsReady = true;
+          contacts.Settings.init();
+          callback();
+        });
       });
     }
   };
@@ -632,7 +634,6 @@ var Contacts = (function() {
     var lazyLoadFiles = [
       '/contacts/js/utilities/templates.js',
       '/contacts/js/contacts_shortcuts.js',
-      '/contacts/js/confirm_dialog.js',
       '/contacts/js/contacts_tag.js',
       '/contacts/js/import_utils.js',
       '/contacts/js/utilities/normalizer.js',
@@ -781,17 +782,49 @@ var Contacts = (function() {
 
   window.addEventListener('localized', initContacts); // addEventListener
 
+  function loadConfirmDialog() {
+    var args = Array.slice(arguments);
+    Contacts.utility('Confirm', function viewLoaded() {
+      ConfirmDialog.show.apply(ConfirmDialog, args);
+    });
+  }
+
   /**
-   * Specifies dependencies for resources
-   * E.g., mapping Facebook as a dependency of views
-   */
+* Specifies dependencies for resources
+* E.g., mapping Facebook as a dependency of views
+*/
   var dependencies = {
     views: {
       Settings: loadFacebook,
       Details: loadFacebook,
       Form: loadFacebook
-    }
+    },
+    utilities: {}
   };
+
+  function load(type, file, callback) {
+    /**
+     * Performs the actual lazy loading
+     * Called once all dependencies are met
+     */
+    function doLoad() {
+      var name = file.toLowerCase();
+
+      LazyLoader.load([
+        'js/' + type + '/' + name + '.js'
+        ], function() {
+          if (callback) {
+            callback();
+          }
+        });
+    }
+
+    if (dependencies[type][file]) {
+      return dependencies[type][file](doLoad);
+    }
+
+    doLoad();
+  }
 
   /**
    * Loads a view from the views/ folder
@@ -799,20 +832,16 @@ var Contacts = (function() {
    * @param {Function} callback.
    */
   function loadView(view, callback) {
+    load('views', view, callback);
+  }
 
-    /**
-     * Performs the actual lazy loading
-     * Called once all dependencies are met
-     */
-    function doLoad() {
-      LazyLoader.load(['js/views/' + view.toLowerCase() + '.js'], callback);
-    }
-
-    if (dependencies.views[view]) {
-      return dependencies.views[view](doLoad);
-    }
-
-    doLoad();
+  /**
+   * Loads a utility from the utilities/ folder
+   * @param {String} utility name.
+   * @param {Function} callback.
+   */
+  function loadUtility(utility, callback) {
+    load('utilities', utility, callback);
   }
 
   return {
@@ -839,8 +868,10 @@ var Contacts = (function() {
     'onLineChanged': onLineChanged,
     'showStatus': showStatus,
     'loadFacebook': loadFacebook,
+    'confirmDialog': loadConfirmDialog,
     'close': close,
     'view': loadView,
+    'utility': loadUtility,
     get asyncScriptsLoaded() {
       return asyncScriptsLoaded;
     }

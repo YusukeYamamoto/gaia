@@ -26,6 +26,8 @@ suite('call screen', function() {
   var groupCalls;
   var muteButton;
   var speakerButton;
+  var statusMessage,
+      statusMessageText;
 
   mocksHelperForCallScreen.attachTestHelpers();
 
@@ -64,6 +66,12 @@ suite('call screen', function() {
     speakerButton.id = 'speaker';
     screen.appendChild(speakerButton);
 
+    statusMessage = document.createElement('div');
+    statusMessage.id = 'statusMsg';
+    statusMessageText = document.createElement('p');
+    statusMessage.appendChild(statusMessageText);
+    screen.appendChild(statusMessage);
+
     // Replace the existing elements
     // Since we can't make the CallScreen look for them again
     if (CallScreen != null) {
@@ -83,13 +91,24 @@ suite('call screen', function() {
   });
 
   suite('calls', function() {
-    suite('bigDuration setter', function() {
-      test('should toggle the class', function() {
+    suite('setters', function() {
+      test('singleLine should toggle the class', function() {
+        assert.isFalse(calls.classList.contains('single-line'));
         assert.isFalse(calls.classList.contains('big-duration'));
-        CallScreen.bigDuration = true;
+
+        CallScreen.singleLine = true;
+        assert.isTrue(calls.classList.contains('single-line'));
         assert.isTrue(calls.classList.contains('big-duration'));
-        CallScreen.bigDuration = false;
+
+        CallScreen.singleLine = false;
+        assert.isFalse(calls.classList.contains('single-line'));
         assert.isFalse(calls.classList.contains('big-duration'));
+      });
+
+      test('cdmaCallWaiting should update the dataset', function() {
+        assert.isUndefined(calls.dataset.cdmaCallWaiting);
+        CallScreen.cdmaCallWaiting = true;
+        assert.equal(calls.dataset.cdmaCallWaiting, 'true');
       });
     });
 
@@ -150,7 +169,7 @@ suite('call screen', function() {
   });
 
   suite('toggleMute', function() {
-    test('should change active-state', function() {
+    test('should change active-state class', function() {
       var classList = CallScreen.muteButton.classList;
       var originalState = classList.contains('active-state');
 
@@ -159,6 +178,17 @@ suite('call screen', function() {
 
       CallScreen.toggleMute();
       assert.equal(classList.contains('active-state'), originalState);
+    });
+
+    test('should change muted class', function() {
+      var classList = CallScreen.calls.classList;
+      var originalState = classList.contains('muted');
+
+      CallScreen.toggleMute();
+      assert.notEqual(classList.contains('muted'), originalState);
+
+      CallScreen.toggleMute();
+      assert.equal(classList.contains('muted'), originalState);
     });
 
     test('should call CallsHandler.toggleMute', function() {
@@ -174,6 +204,13 @@ suite('call screen', function() {
 
       CallScreen.unmute();
       assert.isFalse(classList.contains('active-state'));
+    });
+
+    test('should remove muted', function() {
+      var classList = CallScreen.calls.classList;
+
+      CallScreen.unmute();
+      assert.isFalse(classList.contains('muted'));
     });
 
     test('should call CallsHandler.unmute', function() {
@@ -262,6 +299,52 @@ suite('call screen', function() {
       CallScreen.placeNewCall();
       MockNavigatormozApps.mTriggerLastRequestSuccess();
       assert.equal(resizeSpy.firstCall.args[1], 40);
+    });
+  });
+
+  suite('showStatusMessage', function() {
+    var statusMessage,
+        bannerClass,
+        addEventListenerSpy,
+        removeEventListenerSpy;
+
+    setup(function() {
+      this.sinon.useFakeTimers();
+      statusMessage = CallScreen.statusMessage;
+      bannerClass = statusMessage.classList;
+      addEventListenerSpy = this.sinon.spy(statusMessage, 'addEventListener');
+      removeEventListenerSpy =
+        this.sinon.spy(statusMessage, 'removeEventListener');
+
+      CallScreen.showStatusMessage('message');
+    });
+
+    test('should show the banner', function() {
+      assert.include(bannerClass, 'visible');
+    });
+    test('should show the text', function() {
+      assert.equal(statusMessage.querySelector('p').textContent,
+                   'message');
+    });
+
+    suite('once the transition ends', function() {
+      setup(function() {
+        addEventListenerSpy.yield();
+      });
+      test('should remove the listener', function() {
+        assert.isTrue(removeEventListenerSpy.calledWith('transitionend'));
+      });
+
+      suite('after STATUS_TIME', function() {
+        setup(function(done) {
+          this.sinon.clock.tick(2000);
+          done();
+        });
+        test('should hide the banner', function() {
+          assert.isFalse(bannerClass.contains('visible'));
+        });
+      });
+
     });
   });
 });

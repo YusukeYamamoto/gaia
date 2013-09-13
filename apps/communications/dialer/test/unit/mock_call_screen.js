@@ -39,11 +39,19 @@ var MockCallScreen = {
   hideIncoming: function() {
     this.mHideIncomingCalled = true;
   },
-
-  set bigDuration(value) {
-    this.mBigDuration = value;
+  showStatusMessage: function(text) {
+    this.mShowStatusMessageCalled = true;
   },
-  mBigDuration: null,
+
+  set singleLine(value) {
+    this.mSingleLine = value;
+  },
+  mSingleLine: null,
+
+  set cdmaCallWaiting(enabled) {
+    this.mCdmaCallWaiting = enabled;
+  },
+  mCdmaCallWaiting: null,
 
   // Fake dom
   calls: document.createElement('div'),
@@ -65,11 +73,12 @@ var MockCallScreen = {
     this.mLastRenderMode = null;
     this.mShowIncomingCalled = false;
     this.mHideIncomingCalled = false;
+    this.mShowStatusMessageCalled = false;
     this.calls = document.createElement('div');
     this.screen = document.createElement('div');
     this.incomingContainer = document.createElement('div');
     this.incomingNumber = document.createElement('div');
-    this.mBigDuration = null;
+    this.mSingleLine = null;
   }
 };
 

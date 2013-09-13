@@ -96,17 +96,17 @@ var ActivityHandler = {
       case 'webcontacts/tel':
         type = 'contact';
         dataSet = theContact.tel;
-        noDataStr = _('no_phones');
+        noDataStr = _('no_contact_phones');
         break;
       case 'webcontacts/contact':
         type = 'number';
         dataSet = theContact.tel;
-        noDataStr = _('no_phones');
+        noDataStr = _('no_contact_phones');
         break;
       case 'webcontacts/email':
         type = 'email';
         dataSet = theContact.email;
-        noDataStr = _('no_email');
+        noDataStr = _('no_contact_email');
         break;
     }
     var hasData = dataSet && dataSet.length;
@@ -122,7 +122,7 @@ var ActivityHandler = {
           title: _('ok'),
           callback: ConfirmDialog.hide
         };
-        ConfirmDialog.show(null, noDataStr, dismiss);
+        Contacts.confirmDialog(null, noDataStr, dismiss);
         break;
       case 1:
         // if one required type of data
