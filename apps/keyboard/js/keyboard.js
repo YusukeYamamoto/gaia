@@ -1776,6 +1776,7 @@ function showKeyboard(state) {
   if (inputContext) {
     currentInputMode = inputContext.inputMode;
     currentInputType = mapInputType(inputContext.inputType);
+    console.log('#dbg:keyboard.js:inputContext.inputMode: ' + inputContext.inputMode + '■■■');
   } else {
     console.error('Cannot get inputContext');
     currentInputMode = '';

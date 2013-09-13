@@ -189,6 +189,11 @@
     suggesting = (options.suggest && inputMode !== 'verbatim');
     correcting = (options.correct && inputMode !== 'verbatim');
 
+    console.log('#dbg:latin.js: activate.js capitalizing:' + capitalizing + ' suggesting:' + suggesting + ' correcting:' + correcting + ' ■■■');
+    console.log('#dbg:latin.js: activate.js options.suggest:' + options.suggest + ' inputMode:' + inputMode + ' ■■■');
+    
+
+
     // Reset our state
     lastSpaceTimestamp = 0;
     autoCorrection = null;
@@ -302,6 +307,7 @@
   function displaysCandidates() {
     console.log('#dbg:latin.js:displaysCandidates-call suggesting: ' + suggesting + ' worker:' + worker + ' ■■■');
     // console.dir(worker);
+    console.trace();
     return suggesting && worker;
   }
 
