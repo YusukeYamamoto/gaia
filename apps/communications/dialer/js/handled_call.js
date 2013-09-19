@@ -40,6 +40,17 @@ function HandledCall(aCall) {
   this.durationChildNode = this.node.querySelector('.duration span');
   this.numberNode = this.node.querySelector('.numberWrapper .number');
   this.additionalInfoNode = this.node.querySelector('.additionalContactInfo');
+  this.hangupButton = this.node.querySelector('.hangup-button');
+  this.hangupButton.onclick = (function() {
+    this.call.hangUp();
+  }.bind(this));
+  this.mergeButton = this.node.querySelector('.merge-button');
+  this.mergeButton.onclick = (function(evt) {
+    if (evt) {
+      evt.stopPropagation();
+    }
+    CallsHandler.mergeActiveCallWith(this.call);
+  }).bind(this);
 
   this.updateCallNumber();
 
@@ -71,7 +82,7 @@ HandledCall.prototype.handleEvent = function hc_handle(evt) {
       this.node.classList.remove('held');
       if (this.photo) {
         CallScreen.setCallerContactImage(this.photo,
-                                         {force: true, mask: false});
+                                         {force: true});
       }
       CallScreen.syncSpeakerEnabled();
       break;
@@ -178,7 +189,7 @@ HandledCall.prototype.updateCallNumber = function hc_updateCallNumber() {
       if (contact.photo && contact.photo.length > 0) {
         self.photo = contact.photo[0];
         CallScreen.setCallerContactImage(self.photo,
-                                         {force: true, mask: false});
+                                         {force: true});
         if (typeof self.photo === 'string') {
           contactCopy.photo = self.photo;
         } else {

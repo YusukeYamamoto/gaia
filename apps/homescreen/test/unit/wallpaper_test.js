@@ -1,6 +1,7 @@
 'use strict';
 
-requireApp('homescreen/test/unit/mock_moz_settings.js');
+require('/shared/test/unit/mocks/mock_navigator_moz_settings.js');
+
 requireApp('homescreen/test/unit/mock_moz_activity.js');
 requireApp('homescreen/test/unit/mock_file_reader.js');
 
@@ -16,21 +17,23 @@ mocksHelperForWallpaper.init();
 suite('wallpaper.js >', function() {
 
   var mocksHelper = mocksHelperForWallpaper, icongrid;
+  var realMozSettings;
 
   suiteSetup(function() {
     mocksHelper.suiteSetup();
 
+    realMozSettings = navigator.mozSettings;
+    navigator.mozSettings = MockNavigatorSettings;
+
     icongrid = document.createElement('div');
     icongrid.id = 'icongrid';
     document.body.appendChild(icongrid);
-
-    Wallpaper.init();
   });
 
   suiteTeardown(function() {
     document.body.removeChild(icongrid);
 
-    navigator.mozSettings.suiteTeardown();
+    navigator.mozSettings = realMozSettings;
 
     mocksHelper.suiteTeardown();
   });
@@ -41,12 +44,12 @@ suite('wallpaper.js >', function() {
   });
 
   teardown(function() {
+    window.MockNavigatorSettings.mSettings['wallpaper.image'] = null;
     mocksHelper.teardown();
-    navigator.mozSettings.teardown();
   });
 
   function dispatchLongPress() {
-    icongrid.dispatchEvent(new CustomEvent('contextmenu'));
+    Wallpaper.contextmenu();
   }
 
   function createImageBlob() {
@@ -108,8 +111,7 @@ suite('wallpaper.js >', function() {
     fileReader.onload();
 
     // We set the wallpaper.image property to "banana"
-    assert.equal(Object.keys(navigator.mozSettings.result).length, 1);
-    assert.equal(navigator.mozSettings.result['wallpaper.image'],
+    assert.equal(window.MockNavigatorSettings.mSettings['wallpaper.image'],
                  fileReader.result);
   });
 
@@ -122,7 +124,7 @@ suite('wallpaper.js >', function() {
     fileReader.onerror();
 
     // wallpaper.image property is not defined
-    assert.isNull(navigator.mozSettings.result);
+    assert.isNull(window.MockNavigatorSettings.mSettings['wallpaper.image']);
   });
 
   test('Pick activity returns nothing (no blob) ', function() {
@@ -131,7 +133,7 @@ suite('wallpaper.js >', function() {
 
     // No blob then no FileReader and wallpaper.image property is not defined
     assert.equal(MockFileReader.instances.length, 0);
-    assert.isNull(navigator.mozSettings.result);
+    assert.isNull(window.MockNavigatorSettings.mSettings['wallpaper.image']);
   });
 
   test('Pick activity has been cancelled ', function() {
@@ -140,7 +142,7 @@ suite('wallpaper.js >', function() {
 
     // Then no FileReader and wallpaper.image property is not defined
     assert.equal(MockFileReader.instances.length, 0);
-    assert.isNull(navigator.mozSettings.result);
+    assert.isNull(window.MockNavigatorSettings.mSettings['wallpaper.image']);
   });
 
 });

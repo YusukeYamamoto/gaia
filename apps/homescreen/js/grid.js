@@ -18,6 +18,9 @@ var GridManager = (function() {
   // previously already
   var svPreviouslyInstalledApps = [];
 
+  // XXX bug 911696 filter out launch_path
+  var launchPathBlacklist = [];
+
   var container;
 
   var windowWidth = window.innerWidth;
@@ -374,25 +377,6 @@ var GridManager = (function() {
         removeActive();
         break;
 
-      case 'contextmenu':
-        if (isPanning) {
-          evt.stopImmediatePropagation();
-          return;
-        }
-
-        if (currentPage > landingPage && 'isIcon' in evt.target.dataset) {
-          evt.stopImmediatePropagation();
-          removePanHandler();
-          Homescreen.setMode('edit');
-          removeActive();
-          DragDropManager.start(evt, {
-            'x': startEvent.pageX,
-            'y': startEvent.pageY
-          });
-        }
-
-        break;
-
       case 'wheel':
         if (evt.deltaMode === evt.DOM_DELTA_PAGE && evt.deltaX) {
           // XXX: Scroll one page at a time
@@ -405,6 +389,25 @@ var GridManager = (function() {
           evt.preventDefault();
         }
         break;
+    }
+  }
+
+  function contextmenu(evt) {
+    if (isPanning) {
+      return;
+    }
+
+    if (currentPage > landingPage) {
+      removePanHandler();
+      Homescreen.setMode('edit');
+      removeActive();
+      LazyLoader.load(['style/dragdrop.css', 'js/dragdrop.js'], function() {
+        DragDropManager.init();
+        DragDropManager.start(evt, {
+          'x': startEvent.pageX,
+          'y': startEvent.pageY
+        });
+      });
     }
   }
 
@@ -893,7 +896,6 @@ var GridManager = (function() {
     overlayStyle = overlay.style;
 
     container = document.querySelector(selector);
-    container.addEventListener('contextmenu', handleEvent);
     container.addEventListener('wheel', handleEvent);
     ensurePanning();
 
@@ -1014,7 +1016,16 @@ var GridManager = (function() {
       if (!entryPoints[entryPoint].icons)
         continue;
 
-      createOrUpdateIconForApp(app, entryPoint);
+      if (launchPathBlacklist.length === 0) {
+        createOrUpdateIconForApp(app, entryPoint);
+        return;
+      }
+
+      launchPathBlacklist.forEach(function filter(launchPath) {
+        if (entryPoints[entryPoint].launch_path !== launchPath) {
+          createOrUpdateIconForApp(app, entryPoint);
+        }
+      });
     }
   }
 
@@ -1141,7 +1152,7 @@ var GridManager = (function() {
    * calls the method 'download'. That's applied
    * to an icon, that has associated an app already.
    */
-  function showRestartDownloadDialog(icon) {
+  function doShowRestartDownloadDialog(icon) {
     var app = icon.app;
     var _ = navigator.mozL10n.get;
     var confirm = {
@@ -1173,6 +1184,14 @@ var GridManager = (function() {
       cancel,
       confirm);
     return;
+  }
+
+  function showRestartDownloadDialog(icon) {
+    LazyLoader.load(['shared/style/buttons.css', 'shared/style/headers.css',
+                     'shared/style/confirm.css', 'style/request.css',
+                     'js/request.js'], function() {
+      doShowRestartDownloadDialog(icon);
+    });
   }
 
   function bestMatchingIcon(app, manifest) {
@@ -1304,7 +1323,18 @@ var GridManager = (function() {
         }
       }
 
-      doInit(options, callback);
+      // XXX bug 911696 get entrypoints blacklist from settings
+      // then doInit
+      if ('mozSettings' in navigator) {
+        var key = 'app.launch_path.blacklist';
+        var req = navigator.mozSettings.createLock().get(key);
+        req.onsuccess = function onsuccess() {
+          launchPathBlacklist = req.result[key] || [];
+          doInit(options, callback);
+        };
+      } else {
+        doInit(options, callback);
+      }
     },
 
     onDragStart: function gm_onDragSart() {
@@ -1416,6 +1446,8 @@ var GridManager = (function() {
 
     exitFromEditMode: exitFromEditMode,
 
-    ensurePanning: ensurePanning
+    ensurePanning: ensurePanning,
+
+    contextmenu: contextmenu
   };
 })();

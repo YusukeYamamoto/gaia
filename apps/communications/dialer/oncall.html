@@ -8,7 +8,9 @@
     <link rel="stylesheet" type="text/css" href="/dialer/style/oncall_status_bar.css">
     <link rel="stylesheet" type="text/css" href="/dialer/style/keypad.css">
     <link rel="stylesheet" type="text/css" href="/dialer/style/status.css">
+    <link rel="stylesheet" type="text/css" href="/dialer/style/overlay.css">
     <link rel="stylesheet" type="text/css" href="/shared/style/status.css">
+    <link rel="stylesheet" type="text/css" href="/shared/style/action_menu.css">
 
     <!-- Localization -->
     <script defer type="text/javascript" src="/shared/js/lazy_loader.js"></script>
@@ -47,12 +49,20 @@
   <body>
     <article id="call-screen" data-layout>
       <div id="locked-contact-photo"></div>
+      <div id="lockscreen-header">
+        <div class="lockscreen-clock">
+          <span id="lockscreen-clock-numbers"></span>
+          <span id="lockscreen-clock-meridiem"></span>
+        </div>
+        <div id="lockscreen-date"></div>
+      </div>
       <article id="calls" data-count="0" data-cdma-call-waiting="false">
         <section id="handled-call-template" hidden>
           <div class="switch-calls">
             <span role="button" id="switch-calls-button">
             </span>
           </div>
+          <div class="hangup-button"></div>
           <div class="numberWrapper direction-status-bar">
             <div class="number font-light"></div>
           </div>
@@ -64,27 +74,51 @@
             <span class="font-light"></span>
             <div class="direction"></div>
           </div>
+          <button class="merge-button">Merge</button>
         </section>
         <section id="group-call" hidden>
           <div class="numberWrapper">
-            <div id="group-call-label" class="number font-light direction"></div>
+            <div id="group-show"></div>
+            <div id="group-call-label" class="number font-light"></div>
           </div>
           <div id="group-call-summary" class="additionalContactInfo"></div>
           <div class="duration">
             <span class="font-light"></span>
             <div class="direction"></div>
           </div>
+          <button class="merge-button">Merge</button>
         </section>
       </article>
-      <article id="group-call-details">
-      </article>
+      <form id="group-call-details" role="dialog" data-type="action" class="overlay">
+        <header></header>
+        <section id="handled-call-template" hidden>
+          <div class="hangup-button"></div>
+          <div class="numberWrapper">
+            <div class="number font-light"></div>
+          </div>
+          <div class="fake-number font-light"></div>
+          <div class="additionalContactInfo"></div>
+          <div class="duration">
+            <span class="font-light"></span>
+            <div class="direction">
+              <div></div>
+            </div>
+          </div>
+        </section>
+        <menu>
+          <ul id="group-call-details-list">
+          </ul>
+          <button id="group-hide" data-l10n-id='hide'>
+            Hide
+          </button>
+        </menu>
+      </form>
       <article id="main-container">
 
         <div id="actions-container">
           <div id="swiper-wrapper">
             <div id="swiper-area"></div>
             <div id="swiper-icon-container">
-              <div id="swiper-area-handle"></div>
               <div id="swiper-area-hangup" class="swiper-icon-area swiper-icon-left">
                 <div class="swiper-icon">
                   <div id="swiper-accessibility-hangup" role="button" class="swiper-icon-a11y-button" data-l10n-id="hangup-a11y-button" aria-label="Hangup"></div>
@@ -94,6 +128,34 @@
                 <div class="swiper-icon">
                     <div id="swiper-accessibility-pickup" role="button" class="swiper-icon-a11y-button" data-l10n-id="pickup-a11y-button" aria-label="Pickup"></div>
                 </div>
+              </div>
+
+              <!-- swpier-area-slider -->
+              <div id="swiper-area-slider"
+                   class="swiper-icon-area swiper-icon-center" role="button"
+                   data-l10n-id="unlock-a11y-button" aria-label="Slider">
+
+                <!-- Order matters. If track after handler, it will overlay on the handler -->
+                <div id="swiper-slider-track">
+                  <div class="swiper-icon swiper-slider-left">
+                  </div>
+                  <div class="swiper-icon swiper-slider-center">
+                  </div>
+                  <div class="swiper-icon swiper-slider-right">
+                  </div>
+                </div>
+
+                <div id="swiper-slider-handler">
+                  <div class="swiper-icon swiper-slider-left" data-role="handler-left">
+                    <span>‹</span>
+                  </div>
+                  <div class="swiper-icon swiper-slider-center" data-role="handler-center">
+                  </div>
+                  <div class="swiper-icon swiper-slider-right" data-role="handler-right">
+                    <span>›</span>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
