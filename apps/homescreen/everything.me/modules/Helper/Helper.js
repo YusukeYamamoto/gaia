@@ -1,10 +1,26 @@
+'use strict';
+
 Evme.Helper = new function Evme_Helper() {
-    var NAME = "Helper", self = this,
-        el = null, elWrapper = null, elTitle = null, elList = null, elTip = null,
-        _data = {}, defaultText = "", scroll = null, currentDisplayedType = "", timeoutShowRefine = null,
-        queryForSuggestions = "", lastVisibleItem, clicked = false, titleVisible = false,
-        
-        bShouldAnimate = true, ftr = {};
+    var NAME = "Helper",
+	self = this,
+	el = null,
+	elWrapper = null,
+	elTitle = null,
+	elList = null,
+	elTip = null,
+    elSaveSearch = null,
+	_data = {},
+	defaultText = "",
+	scroll = null,
+	currentDisplayedType = "",
+	timeoutShowRefine = null,
+	queryForSuggestions = "",
+	lastVisibleItem,
+	clicked = false,
+	title = '',
+	titleVisible = false,
+	bShouldAnimate = true,
+	ftr = {};
            
     this.init = function init(options) {
         !options && (options = {});        
@@ -12,20 +28,20 @@ Evme.Helper = new function Evme_Helper() {
         // features
         if (options.features){
             for (var i in options.features) {
-                ftr[i] = options.features[i]
+		ftr[i] = options.features[i];
             }
         }
 
         el = options.el;
         elTitle = options.elTitle;
         elTip = options.elTip;
-        
+        elSaveSearch = options.elSaveSearch;
         elWrapper = el.parentNode;
         elList = Evme.$("ul", el)[0];
 
-        
         elList.addEventListener("click", elementClick, false);
         elTitle.addEventListener("click", titleClicked, false);
+        elSaveSearch.addEventListener("click", saveSearchClicked, false);
         
         self.reset();
 
@@ -90,7 +106,7 @@ Evme.Helper = new function Evme_Helper() {
     this.animateLeft = function animateLeft(callback) {
         el.classList.add("animate");
         window.setTimeout(function onTimeout(){
-            el.style.cssText += "; -moz-transform: translateX(" + -el.offsetWidth + "px)";
+            el.style.cssText += '; transform: translateX(' + Evme.Utils.rem(-el.offsetWidth) + ')';
             window.setTimeout(function onTimeout(){
                 el.classList.remove("animate");
                 window.setTimeout(function onTimeout(){
@@ -102,7 +118,7 @@ Evme.Helper = new function Evme_Helper() {
     this.animateRight = function animateRight(callback) {
         el.classList.add("animate");
         window.setTimeout(function onTimeout(){
-            el.style.cssText += "; -moz-transform: translateX(" + el.offsetWidth + "px)";
+          el.style.cssText += '; transform: translateX(' + Evme.Utils.rem(el.offsetWidth) + ')';
             window.setTimeout(function onTimeout(){
                 el.classList.remove("animate");
                 window.setTimeout(function onTimeout(){
@@ -112,7 +128,7 @@ Evme.Helper = new function Evme_Helper() {
         }, 50);
     };
     this.animateFromRight = function animateFromRight() {
-        el.style.cssText += "; -moz-transform: translateX(" + el.offsetWidth + "px)";
+      el.style.cssText += '; transform: translateX(' + Evme.Utils.rem(el.offsetWidth) + ')';
         window.setTimeout(function onTimeout(){
             el.classList.add("animate");
             window.setTimeout(function onTimeout(){
@@ -124,7 +140,7 @@ Evme.Helper = new function Evme_Helper() {
         }, 20);
     };
     this.animateFromLeft = function animateFromLeft() {
-        el.style.cssText += "; -moz-transform: translateX(" + -el.offsetWidth + "px)";
+      el.style.cssText += '; transform: translateX(' + Evme.Utils.rem(-el.offsetWidth) + ')';
         window.setTimeout(function onTimeout(){
             el.classList.add("animate");
             window.setTimeout(function onTimeout(){
@@ -301,7 +317,9 @@ Evme.Helper = new function Evme_Helper() {
         scroll.scrollTo(0,0);
     };
 
-    this.setTitle = function setTitle(title, type) {
+    this.setTitle = function setTitle(newTitle, type) {
+	title = newTitle;
+
         if (!title) {
             elTitle.innerHTML = '<b ' + Evme.Utils.l10nAttr(NAME, 'title-empty') + '></b>';
             return false;
@@ -335,6 +353,8 @@ Evme.Helper = new function Evme_Helper() {
             elTitle.classList.add("notype");
         }
         
+        updateBookmarkState();
+
         return html;
     };
     
@@ -342,6 +362,7 @@ Evme.Helper = new function Evme_Helper() {
         if (titleVisible) return;
         
         elWrapper.classList.add("close");
+        elTitle.classList.add("visible");
         elTitle.classList.remove("close");
         self.hideTip();
         window.setTimeout(self.disableCloseAnimation, 50);
@@ -353,6 +374,7 @@ Evme.Helper = new function Evme_Helper() {
         if (!titleVisible) return;
         
         elWrapper.classList.remove("close");
+        elTitle.classList.remove("visible");
         elTitle.classList.add("close");
         window.setTimeout(self.disableCloseAnimation, 50);
         self.scrollToStart();
@@ -527,14 +549,48 @@ Evme.Helper = new function Evme_Helper() {
         var val = elClicked.dataset.suggestion,
             valToSend = (val || "").replace(/[\[\]]/g, "").toLowerCase(),
             index = elClicked.dataset.index,
-            source = elClicked.dataset.source, 
+	    source = elClicked.dataset.source,
             type = elClicked.dataset.type;
             
         if (val) {
             cbClick(elClicked, index, isVisibleItem(index), val, valToSend, source, type);
         }
     }
+
+    function saveSearchClicked(e) {
+        var savedAsCollection = elSaveSearch.dataset.savedAsCollection,
+            collectionId = elSaveSearch.dataset.collectionId,
+            data = {
+                "collectionId": collectionId,
+                "callback": updateBookmarkState
+            };
+        
+        if (savedAsCollection === "true") {
+            Evme.EventHandler.trigger(NAME, 'unsaveSearch', data);
+        } else {
+            Evme.EventHandler.trigger(NAME, 'saveSearch', data);
+        }
+    }
     
+    // check if query already saved as collection
+    function updateBookmarkState() {
+        var collections = EvmeManager.getCollections();
+
+        var found = collections.some(function isMatchingQuery(collection) {
+            var name = EvmeManager.getIconName(collection.origin);
+            if (name && name.toLowerCase() === title.toLowerCase()) {
+                elSaveSearch.dataset.savedAsCollection = true;
+                elSaveSearch.dataset.collectionId = collection.id;
+                return true;
+            }
+        });
+
+        if (!found) {
+            elSaveSearch.dataset.savedAsCollection = false;
+            elSaveSearch.dataset.collectionId = '';
+        }
+    }
+
     function titleClicked(e){
         e.preventDefault();
         e.stopPropagation();

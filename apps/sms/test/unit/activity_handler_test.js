@@ -1,6 +1,6 @@
 'use strict';
 
-mocha.globals(['alert', 'Notify']);
+mocha.globals(['alert', 'confirm', 'Notify']);
 
 requireApp(
   'sms/shared/test/unit/mocks/mock_navigator_moz_set_message_handler.js'
@@ -20,10 +20,12 @@ requireApp('sms/test/unit/mock_contacts.js');
 requireApp('sms/test/unit/mock_messages.js');
 requireApp('sms/test/unit/mock_message_manager.js');
 requireApp('sms/test/unit/mock_threads.js');
+requireApp('sms/test/unit/mock_thread_ui.js');
 requireApp('sms/test/unit/mock_action_menu.js');
 
 requireApp('sms/js/utils.js');
 requireApp('sms/test/unit/mock_utils.js');
+requireApp('sms/test/unit/mock_navigatormoz_sms.js');
 
 requireApp('sms/js/activity_handler.js');
 
@@ -37,6 +39,7 @@ var mocksHelperForActivityHandler = new MocksHelper([
   'OptionMenu',
   'SettingsURL',
   'Threads',
+  'ThreadUI',
   'Utils',
   'alert'
 ]).init();
@@ -47,6 +50,7 @@ suite('ActivityHandler', function() {
   var realSetMessageHandler;
   var realWakeLock;
   var realMozApps;
+  var realMozL10n;
 
   suiteSetup(function() {
     realSetMessageHandler = navigator.mozSetMessageHandler;
@@ -58,6 +62,9 @@ suite('ActivityHandler', function() {
     realMozApps = navigator.mozApps;
     navigator.mozApps = MockNavigatormozApps;
 
+    realMozL10n = navigator.mozL10n;
+    navigator.mozL10n = MockL10n;
+
     // in case a previous state does not properly clean its stuff
     window.location.hash = '';
   });
@@ -66,6 +73,7 @@ suite('ActivityHandler', function() {
     navigator.mozSetMessageHandler = realSetMessageHandler;
     navigator.requestWakeLock = realWakeLock;
     navigator.mozApps = realMozApps;
+    navigator.mozL10n = realMozL10n;
   });
 
   setup(function() {
@@ -314,8 +322,6 @@ suite('ActivityHandler', function() {
   });
 
   suite('"new" activity', function() {
-    var realMozL10n;
-
     // Mockup activity
     var newActivity = {
       source: {
@@ -343,12 +349,6 @@ suite('ActivityHandler', function() {
 
     suiteSetup(function() {
       window.location.hash = '#new';
-      realMozL10n = navigator.mozL10n;
-      navigator.mozL10n = MockL10n;
-    });
-
-    suiteTeardown(function() {
-      navigator.mozL10n = realMozL10n;
     });
 
     test('Activity lock should be released properly', function() {
@@ -426,6 +426,58 @@ suite('ActivityHandler', function() {
         items[0].method();
       });
       MockNavigatormozSetMessageHandler.mTrigger('activity', newActivity);
+    });
+  });
+
+  suite('When compose is not empty', function() {
+
+    var message;
+    var text;
+    var realMozMobileMessage;
+
+    setup(function() {
+      text = 'test';
+      Compose.append(text);
+      message = MockMessages.sms();
+      realMozMobileMessage = navigator.mozMobileMessage;
+      navigator.mozMobileMessage = MockNavigatormozMobileMessage;
+      this.sinon.stub(window, 'confirm');
+    });
+
+    teardown(function() {
+      navigator.mozMobileMessage = realMozMobileMessage;
+    });
+
+    suite('confirm false', function() {
+
+      setup(function() {
+        this.sinon.stub(Compose, 'clear');
+        this.sinon.stub(ThreadUI, 'cleanFields');
+        window.confirm.returns(false);
+      });
+
+      test('the text shouldn\'t be cleaned', function() {
+        ActivityHandler.handleMessageNotification(message);
+        MockNavigatormozMobileMessage.mTriggerSuccessMessageRequest();
+        assert.isFalse(Compose.clear.called);
+        assert.isFalse(ThreadUI.cleanFields.called);
+        assert.isTrue(window.confirm.called);
+      });
+    });
+
+    suite('confirm true', function() {
+
+      setup(function() {
+        window.confirm.returns(true);
+        this.sinon.stub(ThreadUI, 'cleanFields');
+      });
+
+      test('the text should be cleaned', function() {
+        ActivityHandler.handleMessageNotification(message);
+        MockNavigatormozMobileMessage.mTriggerSuccessMessageRequest();
+        assert.isTrue(ThreadUI.cleanFields.called);
+        assert.isTrue(window.confirm.called);
+      });
     });
   });
 });

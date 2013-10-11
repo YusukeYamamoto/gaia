@@ -1,5 +1,5 @@
 var utils = require('./utils');
-var config = require('./config').config;
+var config;
 const { Cc, Ci, Cr, Cu } = require('chrome');
 Cu.import('resource://gre/modules/FileUtils.jsm');
 
@@ -30,8 +30,21 @@ function addEntryFileWithTime(zip, pathInZip, file, time) {
   fis.init(file, -1, -1, 0);
 
   zip.addEntryStream(
-    pathInZip, time, Ci.nsIZipWriter.COMPRESSION_DEFAULT, fis, false);
+    pathInZip, time, Ci.nsIZipWriter.COMPRESSION_BEST, fis, false);
   fis.close();
+}
+
+/**
+ * Add a string to a zip file with the specified time
+ */
+function addEntryStringWithTime(zip, pathInZip, data, time) {
+  let sis = Cc['@mozilla.org/io/string-input-stream;1'].
+              createInstance(Ci.nsIStringInputStream);
+  sis.data = data;
+
+  zip.addEntryStream(
+    pathInZip, time, Ci.nsIZipWriter.COMPRESSION_DEFAULT, sis, false);
+  sis.close();
 }
 
 /**
@@ -139,7 +152,7 @@ function copyBuildingBlock(zip, blockName, dirName) {
   let dirPath = '/shared/' + dirName + '/';
 
   // Compute the nsIFile for this shared style
-  let styleFolder = utils.Gaia.sharedFolder.clone();
+  let styleFolder = utils.getGaia(config).sharedFolder.clone();
   styleFolder.append(dirName);
   let cssFile = styleFolder.clone();
   if (!styleFolder.exists()) {
@@ -167,7 +180,8 @@ function copyBuildingBlock(zip, blockName, dirName) {
 
 function customizeFiles(zip, src, dest) {
   // Add customize file to the zip
-  let files = utils.ls(utils.getFile(utils.Gaia.distributionDir, src));
+  var distDir = utils.getGaia(config).distributionDir;
+  let files = utils.ls(utils.getFile(distDir, src));
   files.forEach(function(file) {
     let filename = dest + file.leafName;
     if (zip.hasEntry(filename)) {
@@ -177,7 +191,46 @@ function customizeFiles(zip, src, dest) {
   });
 }
 
-function execute() {
+function getResource(distDir, conf, key, resources, json) {
+  if (conf[key]) {
+    file = utils.getFile(distDir, conf[key]);
+    if (!file.exists()) {
+      throw new Error('Invalid single variant configuration: ' +
+                      file.path + ' not found');
+    }
+
+    resources.push(file);
+    json[key] = '/resources/' + file.leafName;
+  }
+}
+
+function getSingleVariantResources(conf) {
+  var distDir = utils.getGaia(config).distributionDir;
+  conf = utils.getJSON(conf);
+
+  let output = {};
+  let resources = [];
+  conf['operators'].forEach(function(operator) {
+    let object = {};
+
+    getResource(distDir, operator, 'ringtone', resources, object);
+    getResource(distDir, operator, 'wallpaper', resources, object);
+    getResource(distDir, operator, 'default_contacts', resources, object);
+    getResource(distDir, operator, 'support_contacts', resources, object);
+
+    operator['mcc-mnc'].forEach(function(mcc) {
+      if (Object.keys(object).length != 0) {
+        output[mcc] = object;
+      }
+    });
+  });
+
+  return {'conf': output, 'files': resources};
+}
+
+function execute(options) {
+  config = options;
+  var gaia = utils.getGaia(config);
   let webappsTargetDir = Cc['@mozilla.org/file/local;1']
                            .createInstance(Ci.nsILocalFile);
   webappsTargetDir.initWithPath(config.PROFILE_DIR);
@@ -189,7 +242,7 @@ function execute() {
   webappsTargetDir.append('webapps');
   utils.ensureFolderExists(webappsTargetDir);
 
-  utils.Gaia.webapps.forEach(function(webapp) {
+  gaia.webapps.forEach(function(webapp) {
     // If config.BUILD_APP_NAME isn't `*`, we only accept one webapp
     if (config.BUILD_APP_NAME != '*' && webapp.sourceDirectoryName != config.BUILD_APP_NAME)
       return;
@@ -226,20 +279,42 @@ function execute() {
           addToZip(zip, '/' + file.leafName, file);
       });
 
-    if (webapp.sourceDirectoryName === 'system' && utils.Gaia.distributionDir) {
-      if (utils.getFile(utils.Gaia.distributionDir, 'power').exists()) {
+    if (webapp.sourceDirectoryName === 'system' && gaia.distributionDir) {
+      if (utils.getFile(gaia.distributionDir, 'power').exists()) {
         customizeFiles(zip, 'power', 'resources/power/');
       }
     }
 
-    if (webapp.sourceDirectoryName === 'wallpaper' && utils.Gaia.distributionDir &&
-      utils.getFile(utils.Gaia.distributionDir, 'wallpapers').exists()) {
+    if (webapp.sourceDirectoryName === 'wallpaper' && gaia.distributionDir &&
+      utils.getFile(gaia.distributionDir, 'wallpapers').exists()) {
       customizeFiles(zip, 'wallpapers', 'resources/320x480/');
     }
 
-    if (webapp.sourceDirectoryName === 'communications' && utils.Gaia.distributionDir &&
-      utils.getFile(utils.Gaia.distributionDir, 'variants').exists()) {
-      customizeFiles(zip, 'variants', 'ftu/js/variants/');
+    if (webapp.sourceDirectoryName === 'homescreen' && gaia.distributionDir) {
+      let customization = utils.getFile(gaia.distributionDir, 'temp', 'apps', 'conf', 'singlevariantconf.json');
+      if (customization.exists()) {
+        addToZip(zip,'js/singlevariantconf.json', customization);
+      }
+    }
+
+    if (webapp.sourceDirectoryName === 'communications' && gaia.distributionDir &&
+      utils.getFile(gaia.distributionDir).exists()) {
+      let conf = utils.getFile(gaia.distributionDir, 'variant.json');
+      if (conf.exists()) {
+        let resources = getSingleVariantResources(conf);
+
+        addEntryStringWithTime(zip, 'resources/customization.json', JSON.stringify(resources.conf), DEFAULT_TIME);
+
+        resources.files.forEach(function(file) {
+          let filename = 'resources/' + file.leafName;
+          if (zip.hasEntry(filename)) {
+            zip.removeEntry(filename, false);
+          }
+          addEntryFileWithTime(zip, filename, file, DEFAULT_TIME);
+        });
+      } else {
+        dump(conf.path + ' not found. Single variant resources will not be added.\n');
+      }
     }
 
     // Put shared files, but copy only files actually used by the webapp.
@@ -321,7 +396,7 @@ function execute() {
 
     used.js.forEach(function(path) {
       // Compute the nsIFile for this shared JS file
-      let file = utils.Gaia.sharedFolder.clone();
+      let file = gaia.sharedFolder.clone();
       file.append('js');
       path.split('/').forEach(function(segment) {
         file.append(segment);
@@ -335,7 +410,7 @@ function execute() {
 
     used.locales.forEach(function(name) {
       // Compute the nsIFile for this shared locale
-      let localeFolder = utils.Gaia.sharedFolder.clone();
+      let localeFolder = gaia.sharedFolder.clone();
       localeFolder.append('locales');
       let ini = localeFolder.clone();
       localeFolder.append(name);
@@ -355,7 +430,7 @@ function execute() {
 
     used.resources.forEach(function(path) {
       // Compute the nsIFile for this shared resource file
-      let file = utils.Gaia.sharedFolder.clone();
+      let file = gaia.sharedFolder.clone();
       file.append('resources');
       path.split('/').forEach(function(segment) {
         file.append(segment);
@@ -378,8 +453,8 @@ function execute() {
         }
       });
 
-      if (path === 'media/ringtones/' && utils.Gaia.distributionDir &&
-        utils.getFile(utils.Gaia.distributionDir, 'ringtones').exists()) {
+      if (path === 'media/ringtones/' && gaia.distributionDir &&
+        utils.getFile(gaia.distributionDir, 'ringtones').exists()) {
         customizeFiles(zip, 'ringtones', 'shared/resources/media/ringtones/');
       }
     });

@@ -11,24 +11,31 @@
 
     <!-- Shared code -->
     <script type="text/javascript" src="shared/js/l10n.js"></script>
-    <script type="text/javascript" src="shared/js/l10n_date.js"></script>
     <script type="text/javascript" defer src="shared/js/screen_layout.js"></script>
     <script type="text/javascript" defer src="shared/js/manifest_helper.js"></script>
     <!-- <script type="text/javascript" src="shared/js/settings_listener.js"></script> -->
     <script type="text/javascript" defer src="shared/js/async_storage.js"></script>
     <script defer type="text/javascript" src="shared/js/icc_helper.js"></script>
     <script type="text/javascript" defer src="shared/js/lazy_loader.js"></script>
+    <!-- <script type="text/javascript" defer src="shared/js/omadrm/fl.js"></script> -->
+    <!-- <script type="text/javascript" defer src="shared/js/mobile_operator.js"></script> -->
 
     <!-- Lazy load for ConfirmDialog -->
     <!-- <link rel="stylesheet" type="text/css" href="shared/style/buttons.css"> -->
     <!-- <link rel="stylesheet" type="text/css" href="shared/style/headers.css"> -->
     <!-- <link rel="stylesheet" type="text/css" href="shared/style/confirm.css"> -->
 
+    <!-- Lazy load for ContextMenuDialog -->
+    <!-- <link rel="stylesheet" type="text/css" href="style/contextmenu.css"> -->
+    <!-- <link rel="stylesheet" type="text/css" href="shared/style/action_menu.css"> -->
+
     <!-- Lazy load for Ev.me -->
     <!-- <link rel="stylesheet" type="text/css" href="shared/style_unstable/progress_activity.css"> -->
     <!-- <link rel="stylesheet" type="text/css" href="shared/style/status.css"> -->
+    <!-- <link rel="stylesheet" type="text/css" href="shared/style/action_menu.css"> -->
 
     <!-- Specific code -->
+    <script type="text/javascript" defer src="js/grid_components.js"></script>
     <script type="text/javascript" defer src="js/bookmark.js"></script>
     <script type="text/javascript" defer src="js/state.js"></script>
     <script type="text/javascript" defer src="js/icon_retriever.js"></script>
@@ -41,12 +48,16 @@
     <script type="text/javascript" defer src="js/configurator.js"></script>
 
     <link rel="resource" type="application/l10n" href="locales/locales.ini">
-    <link rel="resource" type="application/l10n" href="shared/locales/date.ini">
+
+    <link rel="import" href="/elements/contextmenu.html">
+    <link rel="import" href="/elements/confirm_dialog.html">
+    <link rel="import" href="/elements/search_page.html">
+    <link rel="import" href="/elements/loading_dialog.html">
   </head>
 
   <body data-mode="normal">
     <div id="search-overlay"></div>
-    <div id="landing-overlay"></div>
+    <div id="bg-overlay"></div>
     <!-- This markup is just to detect text overflow with app names
          because of pages are hidden after rendering -->
     <div id="fake-icon">
@@ -55,66 +66,21 @@
       </span>
     </div>
 
-    <section id="confirm-dialog">
-      <form role="dialog" data-type="confirm">
-        <section>
-          <h1 id="confirm-dialog-title"></h1>
-          <p id="confirm-dialog-message"></p>
-        </section>
-        <menu>
-          <button id="confirm-dialog-cancel-button"></button>
-          <button id="confirm-dialog-confirm-button" class="danger"></button>
-        </menu>
-      </form>
-    </section>
+    <section is="confirm-dialog" id="confirm-dialog"></section>
+
+    <section is="contextmenu-dialog" id="contextmenu-dialog"></section>
+
+    <section is="loading-dialog" id="loading-dialog"></section>
 
     <header id="paginationBar">
       <div class="paginationScroller" role="slider" aria-valuemin="0" aria-valuenow="0" aria-valuemax="0" aria-controls="icongrid"></div>
     </header>
 
-    <div id="icongrid" class="apps" role="main">
-      <div id="landing-page" data-current-page="true">
-        <div id="evme-activation-icon"></div>
+    <section is="search-page" id="search-page"></section>
 
-          <div id="evmeContainer">
-            <div id="search" class="active">
-              <div id="search-header">
-                  <form action="/#!/search" id="search-rapper">
-                      <fieldset>
-                          <div id="search-q-bg">
-                              <input type="text" id="search-q" name="search-q" maxlength="128" autocorrect="off" autocapitalize="off" x-inputmode="verbatim" />
-                              <span id="default-text" data-l10n-id="evme-searchbar-default2"></span>
-                          </div>
-                          <div id="helper-tip"><b></b></div>
-                      </fieldset>
-                  </form>
-                  <b id="button-clear" data-l10n-id="evme-searchbar-clear"></b>
-              </div>
-              <div id="header">
-                  <div id="helper-header">
-                      <h1 id="search-title"></h1>
-                      <div id="helper-rapper">
-                          <div id="helper">
-                              <ul></ul>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-              <div id="evmeApps" class="evme-apps">
-                  <ul id="evmeAppsList"></ul>
-              </div>
-            </div>
+    <div id="icongrid" class="apps" role="main"></div>
 
-            <div id="shortcuts">
-                <div id="shortcuts-list">
-                    <ul id="shortcuts-items"></ul>
-                </div>
-                <div id="shortcuts-loading"></div>
-            </div>
-            <section id="evmeBanner" role="status" class="noreset"></section>
-          </div>
-      </div>
-    </div>
+    <section id="homescreenStatus" role="status" class="noreset"></section>
 
     <footer id="footer">
       <div class="dockWrapper"></div>

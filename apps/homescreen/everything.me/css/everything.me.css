@@ -1,15 +1,65 @@
-#evmeContainer {
-  display: none;
+.evmeScope {
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    font-weight: normal;
+    font-size: 1.2rem;
+    text-align: left;
+    height: calc((100% - 7.5rem)/4); /* height of footer */
+    display: none;
 }
-
+  .evmeScope div, .evmeScope p:not(.noreset), .evmeScope span,
+  .evmeScope h1, .evmeScope h2, .evmeScope h3, .evmeScope h4,
+  .evmeScope a, .evmeScope em, .evmeScope img, .evmeScope b,
+  .evmeScope ol, .evmeScope ul, .evmeScope li,
+  .evmeScope fieldset, .evmeScope form, .evmeScope label, .evmeScope legend,
+  .evmeScope input, .evmeScope textarea,
+  .evmeScope table, .evmeScope tr, .evmeScope th, .evmeScope td,
+  .evmeScope canvas {
+      margin: 0;
+      padding: 0;
+      border: 0;
+  }
+.evme-ready .evmeScope {
+    display: block;
+}
+.evme-loading #evmeOverlay {
+  display: block;
+}
 #evme-activation-icon {
   position: absolute;
-  top: 3.2rem;
-  left: 1.1rem;
-  right: 1.1rem;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 200;
   vertical-align: middle;
 }
+  #evme-activation-icon > div {
+    position: absolute;
+    top: 0;
+    left: 1.1rem;
+    right: 1.1rem;
+    z-index: 10;
+    transform: translateY(3.2rem);
+    transition: transform 350ms ease-out;
+  }
+  #evme-activation-icon:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8rem;
+    opacity: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(70, 70, 70, .5) 0%, rgba(0, 0, 0, .5) 20%);
+    box-shadow: 0 0.1rem 0 0 rgba(255, 255, 255, .1);
+    transition: opacity 100ms linear;
+  }
   #evme-activation-icon input {
     position: relative;
     width: 100%;
@@ -22,30 +72,76 @@
     vertical-align: middle;
     border: none;
     display: inline;
+    z-index: 5;
     -moz-box-sizing: border-box;
     background: #ffffff url('/everything.me/images/search-icon.png') 98% 50% no-repeat;
     background-size: 1.6rem 1.6rem;
   }
-
-
-.evme-loaded #evmeContainer {
-  display: block;
+.evme-loading-from-input #evme-activation-icon > div {
+  transform: translateY(0.9rem);
+  left: 0.6rem;
+  right: 0.6rem;
 }
-.evme-loaded #evme-activation-icon {
-  display: none;
+.evme-loading-from-input #evme-activation-icon:before {
+  opacity: 1;
 }
-
-.evme-loading #footer,
-.evme-has-results #footer,
-.evme-display-shortcuts #footer {
-  display: none;
-}
-
-body:not(.evme-displayed) #footer {
-  display: block;
+.evme-loading-from-input #evme-activation-icon input {
+  height: 2.8rem;
+  padding-top: 0.4rem;
+  padding-bottom: 0.2rem;
 }
 
-body.evme-displayed #landing-page {
+.evme-has-query .evmeScope {
+    height: 100%;
+}
+
+.evme-keyboard-visible .evmeScope,
+.evme-suggest-collections-loading .evmeScope {
+    height: 100%;
+}
+
+.evme-keyboard-visible .apps > div.evmePage ol,
+.evme-has-query .apps > div.evmePage ol {
+    opacity: 0;
+}
+.apps > div.evmePage {
+    -moz-box-sizing: border-box;
+    padding-top: 9.6rem;
+}
+
+.evme-displayed .apps > div.evmePage {
   height: 100%;
 }
 
+.evme-has-results #footer,
+.evme-suggest-collections-loading #footer {
+  display: none;
+}
+
+#footer {
+    transition: transform 100ms ease;
+}
+.evme-displayed.evme-keyboard-visible #footer,
+.evme-displayed.evme-has-query #footer{
+    transform: translateY(100%);
+}
+
+.evme-loading-from-input #bg-overlay,
+.evme-displayed.evme-keyboard-visible #bg-overlay,
+.evme-displayed.evme-has-query #bg-overlay{
+  height: 100%;
+}
+
+#loading-dialog {
+  display: none;
+}
+#evme-fullscreen-loading {
+  z-index: 20001; /* needs to be above dock */
+}
+  #evme-fullscreen-loading p {
+    text-align: center;
+  }
+/* prevent 2 loadings showing together */
+.evme-suggest-collections-loading #evme-fullscreen-loading {
+  display: none;
+}

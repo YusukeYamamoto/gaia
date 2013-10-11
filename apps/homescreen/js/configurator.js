@@ -9,6 +9,7 @@ var Configurator = (function() {
 
   // Keeps the list of single variant apps, indexed by manifestURL
   var singleVariantApps = {};
+  var simPresentOnFirstBoot = true;
 
   var dummyProvider = {
     init: function() {
@@ -26,8 +27,7 @@ var Configurator = (function() {
     if (searchPage) {
       var provider = window[searchPage.provider] || dummyProvider;
       if (searchPage.enabled) {
-        provider.init();
-        Homescreen.init(searchPage.separate_page ? 1 : 0);
+        Homescreen.init(0, provider.init.bind(provider));
       } else {
         startHomescreenByDefault();
         setTimeout(provider.destroy, 0);
@@ -72,6 +72,7 @@ var Configurator = (function() {
   }
 
   function loadSingleVariantConf() {
+    loadSettingSIMPresent();
     if (!IccHelper || !IccHelper.enabled) {
       console.error('IccHelper isn\'t enabled. SingleVariant configuration' +
                     ' can\'t be loaded');
@@ -109,8 +110,6 @@ var Configurator = (function() {
 
     function loadSVConfFileError(e) {
       singleVariantApps = {};
-      console.error('Failed parsing singleVariant configuration file [' +
-                    SINGLE_VARIANT_CONF_FILE + ']: ' + e);
     }
 
     var iccHandler = function(evt) {
@@ -130,6 +129,25 @@ var Configurator = (function() {
     if (!iccHandler()) { // Maybe we already have the mcc and mnc...
       IccHelper.addEventListener('iccinfochange', iccHandler);
     }
+  }
+
+  function loadSettingSIMPresent() {
+    var settings = navigator.mozSettings;
+    if (!settings) {
+      console.log('Settings is not available');
+      return;
+    }
+    var req = settings.createLock().get('ftu.simPresentOnFirstBoot');
+
+    req.onsuccess = function osv_success(e) {
+      simPresentOnFirstBoot =
+          req.result['ftu.simPresentOnFirstBoot'] === undefined ||
+          req.result['ftu.simPresentOnFirstBoot'];
+    };
+
+    req.onerror = function osv_error(e) {
+      console.error('Error retrieving ftu.simPresentOnFirstBoot. ' + e);
+    };
   }
 
   function startHomescreenByDefault() {
@@ -156,6 +174,12 @@ var Configurator = (function() {
       return singleVariantApps;
     },
 
-    load: load
+    load: load,
+
+    get isSimPresentOnFirstBoot() {
+      return simPresentOnFirstBoot;
+    },
+
+    loadSettingSIMPresent: loadSettingSIMPresent
   };
 }());

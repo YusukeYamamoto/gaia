@@ -5,17 +5,14 @@
  */
 Evme.Analytics = new function Evme_Analytics() {
     var self = this,
-	ga, idle, providers = [],
+	idle, providers = [],
 	immediateProviders = [],
 	queueArr = [],
 	maxQueueCount,
 	getCurrentAppsRowsCols, getCurrentSearchQuery, getCurrentSearchSource,
 
-	STORAGE_QUERY = "analyticsLastSearchQuery",
+	STORAGE_QUERY = "analyticsLastSearchQuery";
 
-        // Google Analytics load props
-        GAScriptLoadStatus, GAScriptLoadSubscribers = [];
-    
     // default values.
     // overridden by ../config/config.php
     var options = {
@@ -43,15 +40,10 @@ Evme.Analytics = new function Evme_Analytics() {
         if (options.enabled){
             // we send data according to the settings flag (Submit performance data)
             SettingsListener.observe('debug.performance_data.shared', false, onSettingChange);
-        
+
             getCurrentAppsRowsCols = options.getCurrentAppsRowsCols;
             getCurrentSearchQuery = options.getCurrentSearchQuery;
             getCurrentSearchSource = options.getCurrentSearchSource;
-            options.Brain.App.appRedirectBridge = function appRedirectBridge(appUrl, data){
-                setTimeout(function onTimeout(){
-                    Brain.App.appRedirectExecute(appUrl, data);
-                }, 1500);
-            };
             
             // Idle
             idle = new Evme.Idle();
@@ -217,44 +209,7 @@ Evme.Analytics = new function Evme_Analytics() {
             });
         });
     }
-    
-    function loadGAScript(){
-        var src = options.googleAnalyticsFile || ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-        
-        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = false;
-            ga.src = src;
-            ga.onload = onGAScriptLoad;
-        var head = document.getElementsByTagName('head')[0]; head.appendChild(ga);
-    }
-    
-    function onGAScriptLoad(){
-        if (!options.googleAnalyticsAccount){ return false; }
-        
-        // create tracker
-        var tracker = window._gat._createTracker(options.googleAnalyticsAccount);
-        tracker._setDomainName("everything.me");
-        setGACustomVars(tracker);
-        
-        GAScriptLoadStatus = "loaded";
-        GAScriptLoadSubscribers.forEach(function itemIterator(cb){
-            cb(tracker, options.googleAnalyticsAccount);
-        });
-    }
-    
-    function setGACustomVars(tracker){
-        var n = Evme.Utils.getUrlParam("n"),
-            c = Evme.Utils.getUrlParam("c");
-            
-        if (n && c) {
-            tracker['_setCustomVar'](1, "CampaignTracking", n + ":" + c, 1);
-        }
-        
-        tracker['_setCustomVar'](2, "Native", "false", 1);
-        
-        var orientation = (Evme.Utils.getOrientation() || {"name": "N/A"}).name || "N/A";
-        tracker['_setCustomVar'](4, "Orientation", orientation, 1);
-    }
-    
+
     function getElapsedTime(start_ts){
         // calculate difference in ms e.g 2561 
         var d = new Date().getTime() - start_ts;
@@ -284,27 +239,7 @@ Evme.Analytics = new function Evme_Analytics() {
         this.getSessionId = function getSessionId(){
             return options.DoATAPI.getSessionId();
         };
-        
-        // Google Analytics script loader
-        this.onGAScriptLoad = function onGAScriptLoad(cb){
-            // if not loaded yet
-            if (GAScriptLoadStatus !== "loaded"){
-                // load it
-                if (GAScriptLoadStatus !== "loading"){
-                    loadGAScript();
-                    GAScriptLoadStatus = "loading"
-                }
-                
-                // add to queue 
-                GAScriptLoadSubscribers.push(cb);
-            }
-            // if already loaded
-            else{
-                // execute callback
-                cb(window._gat, options.googleAnalyticsAccount);
-            }
-        }
-        
+
         this.DoATAPI = new function DoATAPI(){
             this.report = function report(params){
                 options.DoATAPI.report(params);
@@ -327,8 +262,10 @@ Evme.Analytics = new function Evme_Analytics() {
         
         // not used anymore, remove on next pull-request
         this.isNewSearchQuery = function isNewSearchQuery(newQuery){
-            var lastSearchQuery = Evme.Storage.get(STORAGE_QUERY),
-                newQuery = newQuery.toLowerCase();
+	    var lastSearchQuery = Evme.Storage.get(STORAGE_QUERY);
+
+	    newQuery = newQuery.toLowerCase();
+
             if (newQuery !== lastSearchQuery){
                 Evme.Storage.set(STORAGE_QUERY, newQuery);
                 return true;
@@ -342,7 +279,7 @@ Evme.Analytics = new function Evme_Analytics() {
     this.DoATAPI = new function DoATAPI(){
         var LOGGER_WARN_SLOW_API_RESPONSE_TIME = 2000,
             LOGGER_WARN_SLOW_API_RESPONSE_TEXT = "Slow API response",
-            blacklistMethods = ["logger/", "stats/", "search/trending", "search/bgimage"];
+	    blacklistMethods = ["logger/", "stats/", "search/bgimage"];
         
         this.success = function success(data){
             // Supress report for blacklist methods
@@ -379,33 +316,31 @@ Evme.Analytics = new function Evme_Analytics() {
                 "data": data
             });
         };
+
+	this.loadmore = function loadmore(data) {
+	    queue({
+		"class": "DoATAPI",
+		"event": "loadmore"
+	    });
+
+	    if (Evme.Utils.isKeyboardVisible){
+		queue({
+		    "class": "Results",
+		    "event": "search",
+		    "data": {
+			"query": data.query,
+			"page": "",
+			"feature": "more"
+		    }
+		});
+	    }
+	};
     };
-    
-    this.Analytics = new function Analytics(){
-        this.gaEvent = function gaEvent(data){
-            var GAEvents = getProviderByName("GAEvents");
-            
-            GAEvents && GAEvents.dispatch([{
-                "class": "event",
-                "event": "override",
-                "data": {
-                    "category": data.args[0],
-                    "action": data.args[1],
-                    "label": data.args[2],
-                    "value": data.args[3]
-                }
-            }]);
-        };
-    };
-   
+
     this.Core = new function Core(){
         var ROWS = 1, COLS = 0, redirectData;
            
         this.redirectedToApp = function redirectedToApp(data) {
-            var total = getCurrentAppsRowsCols(),
-                colIndex = data.index%(total[COLS]),
-                rowIndex = Math.floor(data.index/(total[COLS]));
-            
             var queueData = {
                 "url": data.appUrl,
                 "more": data.isMore ? 1 : 0,
@@ -710,36 +645,13 @@ Evme.Analytics = new function Evme_Analytics() {
         };
     };
     
-    this.App = new function App() {
+    this.Result = new function Result() {
         this.addToHomeScreen = function addToHomeScreen(data) {
             queue({
-                "class": "App",
+		"class": "Result",
                 "event": "addToHomeScreen",
                 "data": data
             });
-        };
-    };
-    
-    this.AppsMore = new function AppsMore() {        
-        this.show = function show(data) {
-            queue({
-                "class": "AppsMore",
-                "event": "show",
-                "data": data
-            });
-            
-            if (Evme.Utils.isKeyboardVisible){
-                data.query = Evme.Utils.getCurrentSearchQuery();
-                queue({
-                    "class": "Results",
-                    "event": "search",
-                    "data": {
-                        "query": data.query,
-                        "page": "",
-                        "feature": "more"
-                    }
-                });
-            }
         };
     };
     
@@ -781,10 +693,10 @@ Evme.Analytics = new function Evme_Analytics() {
         };
     };
     
-    this.ShortcutsCustomize = new function ShortcutsCustomize() {
+    this.CollectionsSuggest = new function CollectionsSuggest() {
         this.show = function show(data) {
             queue({
-                "class": "ShortcutsCustomize",
+		"class": "CollectionsSuggest",
                 "event": "show",
                 "data": data
             });
@@ -792,7 +704,7 @@ Evme.Analytics = new function Evme_Analytics() {
         
         this.done = function done(data) {
             queue({
-                "class": "ShortcutsCustomize",
+		"class": "CollectionsSuggest",
                 "event": "done",
                 "data": data
             });

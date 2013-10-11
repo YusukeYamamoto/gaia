@@ -6,15 +6,17 @@ var Homescreen = (function() {
   var origin = document.location.protocol + '//homescreen.' +
     document.location.host.replace(/(^[\w\d]+.)?([\w\d]+.[a-z]+)/, '$2');
   setLocale();
+  var iconGrid = document.getElementById('icongrid');
+
   navigator.mozL10n.ready(function localize() {
     setLocale();
     GridManager.localize();
   });
 
-  var initialized = false, landingPage;
+  var initialized = false;
   onConnectionChange(navigator.onLine);
 
-  function initialize(lPage) {
+  function initialize(lPage, onInit) {
     if (initialized) {
       return;
     }
@@ -22,7 +24,6 @@ var Homescreen = (function() {
     PaginationBar.init('.paginationScroller');
 
     initialized = true;
-    landingPage = lPage;
 
     var swipeSection = Configurator.getSection('swipe');
     var options = {
@@ -48,7 +49,7 @@ var Homescreen = (function() {
         } else if (Homescreen.isInEditMode()) {
           exitFromEditMode();
         } else {
-          GridManager.goToPage(landingPage);
+          GridManager.goToLandingPage();
         }
         GridManager.ensurePanning();
       });
@@ -57,10 +58,14 @@ var Homescreen = (function() {
       if (document.location.hash === '#root') {
         // Switch to the first page only if the user has not already
         // start to pan while home is loading
-        GridManager.goToPage(landingPage);
+        GridManager.goToLandingPage();
       }
 
       document.body.addEventListener('contextmenu', onContextMenu);
+
+      if (typeof onInit === 'function') {
+        onInit();
+      }
     });
   }
 
@@ -72,15 +77,42 @@ var Homescreen = (function() {
       var manager = target.parentNode === DockManager.page.olist ? DockManager :
                                                                    GridManager;
       manager.contextmenu(evt);
+      if (Homescreen.isInEditMode()) {
+        iconGrid.addEventListener('click', onClickHandler);
+      }
     } else if (!Homescreen.isInEditMode()) {
       // No long press over an icon neither edit mode
-      LazyLoader.load('js/wallpaper.js', function callWallpaper() {
-        Wallpaper.contextmenu();
-      });
+      evt.preventDefault();
+      var contextMenuEl = document.getElementById('contextmenu-dialog');
+
+      if (Configurator.getSection('search_page')) {
+        LazyLoader.load(['style/contextmenu.css',
+                         'shared/style/action_menu.css',
+                         contextMenuEl,
+                         'js/contextmenu.js'
+                         ], function callContextMenu() {
+                          navigator.mozL10n.translate(contextMenuEl);
+                          ContextMenuDialog.show();
+                        }
+        );
+      } else {
+        // only wallpaper
+        LazyLoader.load(['shared/js/omadrm/fl.js', 'js/wallpaper.js'],
+                      function callWallpaper() {
+                        Wallpaper.contextmenu();
+                      });
+      }
+    }
+  }
+  // dismiss edit mode by tapping in an area of the view where there is no icon
+  function onClickHandler(evt) {
+    if (!('isIcon' in evt.target.dataset)) {
+      exitFromEditMode();
     }
   }
 
   function exitFromEditMode() {
+    iconGrid.removeEventListener('click', onClickHandler);
     Homescreen.setMode('normal');
     GridManager.exitFromEditMode();
     if (typeof ConfirmDialog !== 'undefined') {
@@ -138,14 +170,17 @@ var Homescreen = (function() {
     /*
      * Displays the contextual menu given an app.
      *
-     * @param {Application} app
-     *                      The application object.
+     * @param {Object} Icon object
+     *
      */
-    showAppDialog: function h_showAppDialog(app) {
-      LazyLoader.load(['shared/style/buttons.css', 'shared/style/headers.css',
-                       'shared/style/confirm.css', 'style/request.css',
+    showAppDialog: function h_showAppDialog(icon) {
+      LazyLoader.load(['shared/style/buttons.css',
+                       'shared/style/headers.css',
+                       'shared/style/confirm.css',
+                       'style/request.css',
+                       document.getElementById('confirm-dialog'),
                        'js/request.js'], function loaded() {
-        ConfirmDialog.showApp(app);
+        ConfirmDialog.showApp(icon);
       });
     },
 
@@ -154,8 +189,8 @@ var Homescreen = (function() {
     },
 
     didEvmePreventHomeButton: function() {
-      var evme = ('EvmeFacade' in window) && window.EvmeFacade;
-      return evme.onHomeButtonPress && evme.onHomeButtonPress();
+      return EvmeFacade && EvmeFacade.onHomeButtonPress &&
+              EvmeFacade.onHomeButtonPress();
     },
 
     init: initialize,

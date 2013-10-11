@@ -35,6 +35,7 @@ requireApp('sms/test/unit/mock_dialog.js');
 requireApp('sms/test/unit/mock_smil.js');
 requireApp('sms/test/unit/mock_custom_dialog.js');
 requireApp('sms/test/unit/mock_url.js');
+requireApp('sms/test/unit/mock_compose.js');
 
 var mocksHelperForThreadUI = new MocksHelper([
   'Attachment',
@@ -491,6 +492,33 @@ suite('thread_ui.js >', function() {
       });
     });
 
+    suite('type changed after the first segment info request >', function() {
+      setup(function() {
+        Compose.type = 'sms';
+
+        ThreadUI.updateCounter();
+        this.sinon.clock.tick(ThreadUI.UPDATE_DELAY);
+
+        // change type to MMS
+        Compose.type = 'mms';
+
+        // no characters were entered in the first call
+        var segmentInfo = {
+          segments: 0,
+          charsAvailableInLastSegment: 0
+        };
+        MockNavigatormozMobileMessage.mTriggerSegmentInfoSuccess(segmentInfo);
+      });
+
+      teardown(function() {
+        Compose.type = 'sms';
+      });
+
+      test('should not change the segment info', function() {
+        assert.ok(sendButton.classList.contains('has-counter'));
+      });
+    });
+
     suite('no characters entered >', function() {
       setup(function() {
         var segmentInfo = {
@@ -868,6 +896,8 @@ suite('thread_ui.js >', function() {
       Compose.clear();
       this.sinon.clock.tick(ThreadUI.UPDATE_DELAY);
       segmentInfo.segments = 0;
+      // we have 2 requests, so we trigger twice
+      MockNavigatormozMobileMessage.mTriggerSegmentInfoSuccess(segmentInfo);
       MockNavigatormozMobileMessage.mTriggerSegmentInfoSuccess(segmentInfo);
 
       assert.isFalse(convertBanner.classList.contains('hide'),
@@ -916,6 +946,8 @@ suite('thread_ui.js >', function() {
       Compose.clear();
       this.sinon.clock.tick(ThreadUI.UPDATE_DELAY);
       segmentInfo.segments = 0;
+      // we have 2 requests, so we trigger twice
+      MockNavigatormozMobileMessage.mTriggerSegmentInfoSuccess(segmentInfo);
       MockNavigatormozMobileMessage.mTriggerSegmentInfoSuccess(segmentInfo);
 
       assert.isFalse(convertBanner.classList.contains('hide'),
@@ -935,6 +967,26 @@ suite('thread_ui.js >', function() {
       assert.isTrue(convertBanner.classList.contains('hide'),
         'conversion banner is hidden at 3 seconds');
 
+    });
+
+    test('we dont display the banner when cleaning fields', function() {
+
+      // let's move to MMS type
+      Compose.type = 'mms';
+
+      // and ignore this banner which should be there
+      this.sinon.clock.tick(ThreadUI.CONVERTED_MESSAGE_DURATION);
+
+      this.sinon.spy(Compose, 'clear');
+
+      ThreadUI.cleanFields();
+      MockNavigatormozMobileMessage.mTriggerSegmentInfoSuccess({
+        segments: 0,
+        charsAvailableInLastSegment: 0
+      });
+
+      assert.isTrue(Compose.clear.called);
+      assert.isTrue(convertBanner.classList.contains('hide'));
     });
   });
 
@@ -2038,27 +2090,35 @@ suite('thread_ui.js >', function() {
   // error on a thread with just that message, should leave
   // the thread with just one message.
   suite('Message error resent in thread with 1 message', function() {
+    var message, request;
     setup(function() {
-      ThreadUI.appendMessage({
+      message = {
         id: 23,
         type: 'sms',
         body: 'This is a error sms',
         delivery: 'error',
         timestamp: new Date()
-      });
-      sinon.stub(window, 'confirm');
+      };
+      ThreadUI.appendMessage(message);
+
+      this.sinon.stub(window, 'confirm');
+      // TODO use MockMessageManager instead
+      request = {};
+      this.sinon.stub(MessageManager, 'getMessage').returns(request);
+      this.sinon.stub(MessageManager, 'resendMessage');
       this.errorMsg = ThreadUI.container.querySelector('.error');
-    });
-    teardown(function() {
-      window.confirm.restore();
     });
 
     test('clicking on an error message bubble in a thread with 1 message ' +
-      'should try to resend and leave a thread with 1 message',
+      'should try to resend and remove the errored message',
       function() {
       window.confirm.returns(true);
       this.errorMsg.querySelector('.pack-end').click();
-      assert.equal(ThreadUI.container.querySelectorAll('li').length, 1);
+
+      request.result = message;
+      request.onsuccess && request.onsuccess.call(request);
+      assert.isNull(ThreadUI.container.querySelector('li'));
+      assert.ok(MessageManager.resendMessage.calledWith(message));
     });
   });
 
@@ -2603,7 +2663,10 @@ suite('thread_ui.js >', function() {
 
           // Ensures that the OptionMenu was given
           // the phone number to diplay
-          assert.equal(call.section, '999');
+          assert.equal(call.header, '999');
+
+          // Only known Contact details should appear in the "section"
+          assert.equal(call.section, '');
 
           assert.equal(items.length, 4);
 
@@ -2639,8 +2702,11 @@ suite('thread_ui.js >', function() {
           var items = call.items;
 
           // Ensures that the OptionMenu was given
-          // the phone number to diplay
-          assert.equal(call.section, 'a@b.com');
+          // the email address to diplay
+          assert.equal(call.header, 'a@b.com');
+
+          // Only known Contact details should appear in the "section"
+          assert.equal(call.section, '');
 
           assert.equal(items.length, 4);
 
@@ -2676,7 +2742,7 @@ suite('thread_ui.js >', function() {
 
           // Ensures that the OptionMenu was given
           // the phone number to diplay
-          assert.equal(call.section, '999');
+          assert.equal(call.header, '999');
 
           assert.equal(items.length, 3);
 
@@ -2710,7 +2776,7 @@ suite('thread_ui.js >', function() {
 
           // Ensures that the OptionMenu was given
           // the phone number to diplay
-          assert.equal(call.section, '999');
+          assert.equal(call.header, '999');
 
           assert.equal(items.length, 5);
 
@@ -3180,7 +3246,7 @@ suite('thread_ui.js >', function() {
     });
   });
 
-  suite('recipient handling yields correct header', function() {
+  suite('recipient handling >', function() {
     var localize;
     setup(function() {
       location.hash = '#new';
@@ -3191,33 +3257,61 @@ suite('thread_ui.js >', function() {
       location.hash = '';
     });
 
-    test('no recipients', function() {
-      ThreadUI.updateComposerHeader();
-      assert.deepEqual(localize.args[0], [
-        ThreadUI.headerText, 'newMessage'
-      ]);
+    function testPickButtonEnabled() {
+      test('pick button is enabled', function() {
+        var pickButton = ThreadUI.contactPickButton;
+        assert.isFalse(pickButton.classList.contains('disabled'));
+      });
+    }
+
+    suite('no recipients', function() {
+      setup(function() {
+        ThreadUI.updateComposerHeader();
+      });
+
+      test('header is correct', function() {
+        assert.deepEqual(localize.args[0], [
+          ThreadUI.headerText, 'newMessage'
+        ]);
+      });
+
+      testPickButtonEnabled();
     });
 
-    test('add one recipient', function() {
-      ThreadUI.recipients.add({
-        number: '999'
+    suite('add one recipient', function() {
+      setup(function() {
+        ThreadUI.recipients.add({
+          number: '999'
+        });
       });
-      assert.deepEqual(localize.args[0], [
-        ThreadUI.headerText, 'recipient', {n: 1}
-      ]);
+
+      test('header is correct', function() {
+        assert.deepEqual(localize.args[0], [
+          ThreadUI.headerText, 'recipient', {n: 1}
+        ]);
+      });
+
+      testPickButtonEnabled();
     });
 
-    test('add two recipients', function() {
-      ThreadUI.recipients.add({
-        number: '999'
+    suite('add two recipients', function() {
+      setup(function() {
+        ThreadUI.recipients.add({
+          number: '999'
+        });
+        ThreadUI.recipients.add({
+          number: '888'
+        });
       });
-      ThreadUI.recipients.add({
-        number: '888'
+
+      test('header is correct', function() {
+        assert.ok(localize.calledTwice);
+        assert.deepEqual(localize.args[1], [
+          ThreadUI.headerText, 'recipient', {n: 2}
+        ]);
       });
-      assert.ok(localize.calledTwice);
-      assert.deepEqual(localize.args[1], [
-        ThreadUI.headerText, 'recipient', {n: 2}
-      ]);
+
+      testPickButtonEnabled();
     });
   });
 

@@ -1,12 +1,26 @@
-(function(exports) {
+define(function(require) {
 
   'use strict';
 
+  var Panel = require('panel');
+  var View = require('view');
+  var Stopwatch = require('stopwatch');
+  var Utils = require('utils');
+  var Template = require('shared/js/template');
+  var mozL10n = require('l10n');
   var priv = new WeakMap();
 
-  function StopwatchPanel(element) {
-
+  /**
+   * Stopwatch.Panel
+   *
+   * Construct a UI panel for the Stopwatch panel.
+   *
+   * @return {Stopwatch.Panel} Stopwatch.Panel object.
+   *
+   */
+  Stopwatch.Panel = function(element) {
     Panel.apply(this, arguments);
+
     this.nodes = {};
     this.lapTemplate = new Template('lap-list-item-tmpl');
     this.interval = null;
@@ -42,66 +56,75 @@
       this.onvisibilitychange.bind(this)
     );
 
-    priv.set(this, {
-      stopwatch: new Stopwatch()
-    });
+    this.setStopwatch(new Stopwatch());
 
-  }
+  };
 
-  StopwatchPanel.prototype = Object.create(Panel.prototype);
+  Stopwatch.Panel.prototype = Object.create(Panel.prototype);
 
-  StopwatchPanel.prototype.update = function() {
+  Stopwatch.Panel.prototype.update = function() {
     var swp = priv.get(this);
     var e = swp.stopwatch.getElapsedTime();
     var time = Utils.format.hms(Math.floor(e.getTime() / 1000), 'mm:ss');
     this.nodes.time.textContent = time;
   };
 
-  StopwatchPanel.prototype.showButtons = function() {
+  Stopwatch.Panel.prototype.showButtons = function() {
     Array.prototype.forEach.call(arguments, function(a) {
-      this.nodes[a].classList.remove('hide');
+      this.nodes[a].classList.remove('hidden');
     }, this);
   };
 
-  StopwatchPanel.prototype.hideButtons = function() {
+  Stopwatch.Panel.prototype.hideButtons = function() {
     Array.prototype.forEach.call(arguments, function(a) {
-      this.nodes[a].classList.add('hide');
+      this.nodes[a].classList.add('hidden');
     }, this);
   };
 
-  StopwatchPanel.prototype.onvisibilitychange = function(isVisible) {
-    var swp = priv.get(this);
+  Stopwatch.Panel.prototype.setState = function(state) {
+    switch (state) {
+      case Stopwatch.RUNNING:
+        this.onstart();
+        break;
 
-    if (isVisible) {
-      if (swp.stopwatch.isStarted()) {
-        // Stopwatch is started
-        //
-        // - update the display before becoming visible
-        // - restart the interval
-        //
-        this.update();
-        this.interval = window.setInterval(this.update.bind(this), 50);
-      } else {
-        // Stopwatch is not started and elapsedTime is 0
-        //
-        // - reset the UI
-        //
-        if (swp.stopwatch.getElapsedTime().getTime() == 0) {
-          this.onreset();
-        }
-      }
-    } else {
-      if (swp.stopwatch.isStarted()) {
-        // Stopwatch is started
-        //
-        // - clear the interval
-        //
-        window.clearInterval(this.interval);
-      }
+      case Stopwatch.PAUSED:
+        this.onpause();
+        break;
+
+      case Stopwatch.RESET:
+        this.onreset();
+        break;
+    }
+    this.update();
+  };
+
+  Stopwatch.Panel.prototype.setStopwatch = function(stopwatch) {
+    priv.set(this, {
+      stopwatch: stopwatch
+    });
+
+    this.setState(stopwatch.getState());
+
+    //Clear any existing lap indicators and make new ones
+    var lapsUl = this.nodes.laps;
+    lapsUl.textContent = '';
+    var laps = stopwatch.getLapDurations();
+    for (var i = 0; i < laps.length; i++) {
+      this.onlap(new Date(laps[i]));
     }
   };
 
-  StopwatchPanel.prototype.handleEvent = function(event) {
+  Stopwatch.Panel.prototype.onvisibilitychange = function(isVisible) {
+    var stopwatch = priv.get(this).stopwatch;
+    if (isVisible) {
+      this.setState(stopwatch.getState());
+    } else {
+      // Clear the interval that updates the time display
+      clearInterval(this.interval);
+    }
+  };
+
+  Stopwatch.Panel.prototype.handleEvent = function(event) {
     if (event.type == 'animationend') {
       Panel.prototype.handleEvent.apply(this, arguments);
       return;
@@ -119,28 +142,26 @@
     }
   };
 
-  StopwatchPanel.prototype.onstart = function() {
-    this.interval = window.setInterval(this.update.bind(this), 50);
-    this.nodes.reset.removeAttribute('disabled');
+  Stopwatch.Panel.prototype.onstart = function() {
+    this.interval = setInterval(this.update.bind(this), 50);
     this.showButtons('pause', 'lap');
     this.hideButtons('start', 'resume', 'reset');
   };
 
-  StopwatchPanel.prototype.onpause = function() {
-    window.clearInterval(this.interval);
+  Stopwatch.Panel.prototype.onpause = function() {
+    clearInterval(this.interval);
+    this.nodes.reset.removeAttribute('disabled');
     this.showButtons('resume', 'reset');
     this.hideButtons('pause', 'start', 'lap');
   };
 
-  StopwatchPanel.prototype.onresume = function() {
-    this.interval = window.setInterval(this.update.bind(this), 50);
-    this.showButtons('pause', 'lap');
-    this.hidebuttons('start', 'resume', 'reset');
+  Stopwatch.Panel.prototype.onresume = function() {
+    this.onstart();
   };
 
-  StopwatchPanel.prototype.onlap = function(val) {
-    var node = this.nodes['laps'];
-    var num = node.childNodes.length + 1 + '';
+  Stopwatch.Panel.prototype.onlap = function(val) {
+    var node = this.nodes.laps;
+    var num = node.childNodes.length + 1;
     if (num > 99) {
       return;
     }
@@ -148,26 +169,26 @@
     var li = document.createElement('li');
     li.setAttribute('class', 'lap-cell');
     var html = this.lapTemplate.interpolate({
-      num: num,
       time: time
     });
     li.innerHTML = html;
+    mozL10n.localize(
+      li.querySelector('.lap-name'),
+      'lap-number',
+      { n: num }
+    );
     node.insertBefore(li, node.firstChild);
   };
 
-  StopwatchPanel.prototype.onreset = function() {
-    window.clearInterval(this.interval);
+  Stopwatch.Panel.prototype.onreset = function() {
+    clearInterval(this.interval);
     this.showButtons('start', 'reset');
     this.hideButtons('pause', 'resume', 'lap');
     this.nodes.reset.setAttribute('disabled', 'true');
-    this.update();
     // clear lap list
-    var node = this.nodes.laps;
-    while (node.hasChildNodes()) {
-      node.removeChild(node.lastChild);
-    }
+    this.nodes.laps.textContent = '';
+    this.update();
   };
 
-  exports.StopwatchPanel = StopwatchPanel;
-
-}(this));
+  return Stopwatch.Panel;
+});

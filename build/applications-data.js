@@ -1,7 +1,7 @@
 'use strict';
 
 var utils = require('./utils');
-var config = require('./config').config;
+var config;
 
 const PREFERRED_ICON_SIZE = 60;
 const GAIA_CORE_APP_SRCDIR = 'apps';
@@ -48,15 +48,18 @@ function bestMatchingIcon(preferred_size, manifest, origin) {
   return origin + url;
 }
 
-function iconDescriptor(directory, app_name, entry_point) {
-  let origin = utils.gaiaOriginURL(app_name);
-  let manifestURL = utils.gaiaManifestURL(app_name);
+function getIconInfo(directory, app_name, entry_point) {
+  let gaia = utils.getGaia(config);
+  let origin = utils.gaiaOriginURL(app_name, config.GAIA_SCHEME,
+    config.GAIA_DOMAIN, config.GAIA_PORT);
+  let manifestURL = utils.gaiaManifestURL(app_name,
+    config.GAIA_SCHEME,  config.GAIA_DOMAIN, config.GAIA_PORT);
 
   // Locate the directory of a given app.
   // If the directory (Gaia.distributionDir)/(directory)/(app_name) exists,
   // favor it over (GAIA_DIR)/(directory)/(app_name).
-  let targetDir = utils.Gaia.distributionDir ?
-    utils.Gaia.distributionDir : config.GAIA_DIR;
+  let targetDir = gaia.distributionDir ?
+    gaia.distributionDir : config.GAIA_DIR;
   let dir = utils.getFile(targetDir, directory, app_name);
 
   if (!dir.exists()) {
@@ -87,9 +90,16 @@ function iconDescriptor(directory, app_name, entry_point) {
     manifest = utils.getJSON(manifestFile);
   } else {
     manifestFile = dir.clone();
-    manifestFile.append('update.webapp');
-    dump('Looking for packaged app: ' + manifestFile.path + '\n');
-    manifest = utils.getJSON(manifestFile);
+    // Looking for a homescreen's collection
+    manifestFile.append('manifest.collection');
+    if (manifestFile.exists()) {
+      manifest = utils.getJSON(manifestFile);
+    } else {
+      manifestFile = dir.clone();
+      manifestFile.append('update.webapp');
+      // Looking for packaged app
+      manifest = utils.getJSON(manifestFile);
+    }
   }
 
   if (entry_point &&
@@ -97,19 +107,57 @@ function iconDescriptor(directory, app_name, entry_point) {
       manifest.entry_points[entry_point]) {
     manifest = manifest.entry_points[entry_point];
   }
-  let icon = bestMatchingIcon(PREFERRED_ICON_SIZE, manifest, origin);
 
-  //TODO set localizedName once we know the default locale
   return {
+    origin: origin,
     manifestURL: manifestURL,
-    entry_point: entry_point,
-    updateTime: INSTALL_TIME,
-    name: manifest.name,
-    icon: icon
-  };
+    manifest: manifest
+  }
 }
 
-function execute() {
+function iconDescriptor(directory, app_name, entry_point) {
+  let info = getIconInfo(directory, app_name, entry_point);
+
+	let manifest = info.manifest;
+  let origin = info.origin;
+  let manifestURL = info.manifestURL;
+
+  let descriptor = {
+    //TODO set localizedName once we know the default locale
+    entry_point: entry_point,
+    updateTime: INSTALL_TIME,
+    name: manifest.name
+  };
+
+	if (manifest.role === 'collection') {
+    origin = utils.gaiaOriginURL('homescreen', config.GAIA_SCHEME,
+    config.GAIA_DOMAIN, config.GAIA_PORT);
+    manifestURL = origin + '/collections/' + app_name + '/manifest.collection';
+    descriptor.provider_id = manifest.provider_id;
+    descriptor.role = manifest.role;
+    descriptor.removable = true; // Collections are removable by default
+
+		// Iterating local apps installed in the collection by default
+    let apps = [];
+    if (Array.isArray(manifest.apps)) {
+      manifest.apps.forEach(function iterate(app) {
+        let iconInfo = getIconInfo.apply(null, app);
+        app.splice(0, 2, iconInfo.manifestURL);
+        apps.push(app);
+      });
+    }
+    descriptor.apps = apps;
+  }
+
+  descriptor.manifestURL = manifestURL;
+  descriptor.icon = bestMatchingIcon(PREFERRED_ICON_SIZE, manifest, origin);
+
+	return descriptor;
+}
+
+function execute(options) {
+  config = options;
+  var distDir = config.GAIA_DISTRIBUTION_DIR;
   // zeroth grid page is the dock
   let customize = {'homescreens': [
     [
@@ -118,12 +166,16 @@ function execute() {
       ['apps', 'communications', 'contacts'],
       ['apps', 'browser']
     ], [
+      ['apps/homescreen/collections', 'social'],
+      ['apps/homescreen/collections', 'games'],
+      ['apps/homescreen/collections', 'music'],
+      ['apps/homescreen/collections', 'entertainment']
+    ], [
       ['apps', 'camera'],
       ['apps', 'gallery'],
       ['apps', 'fm'],
       ['apps', 'settings'],
-      [GAIA_EXTERNAL_APP_SRCDIR, 'marketplace.firefox.com']
-    ], [
+      [GAIA_EXTERNAL_APP_SRCDIR, 'marketplace.firefox.com'],
       ['apps', 'calendar'],
       ['apps', 'clock'],
       ['apps', 'costcontrol'],
@@ -142,11 +194,15 @@ function execute() {
   }
 
   customize = JSON.parse(utils.getDistributionFileContent('homescreens',
-    customize));
+    customize, distDir));
   // keep e.me on by default
   let search_page_enabled = (customize.search_page) ?
                             customize.search_page.enabled : true;
 
+  // It defines the threshold in milliseconds to move a collection while
+  // dragging
+  let move_collection_threshold = (customize.move_collection_threshold) ?
+				 customize.move_collection_threshold : 1500;
   // It defines the threshold in pixels to consider a gesture like a tap event
   let tap_threshold = (customize.tap_threshold) ? customize.tap_threshold : 10;
   // It defines the threshold to consider a gesture like a swipe. Number
@@ -174,6 +230,8 @@ function execute() {
     },
 
     tap_threshold: tap_threshold,
+
+    move_collection_threshold: move_collection_threshold,
 
     swipe: {
       threshold: swipe_threshold,
@@ -210,7 +268,7 @@ function execute() {
   content = ['4850', '7000'];
 
   utils.writeContent(init,
-    utils.getDistributionFileContent('sms-blacklist', content));
+    utils.getDistributionFileContent('sms-blacklist', content, distDir));
 
   // Active Sensors
   init = utils.getFile(config.GAIA_DIR,
@@ -218,7 +276,7 @@ function execute() {
   content = { ambientLight: true };
 
   utils.writeContent(init,
-    utils.getDistributionFileContent('sensors', content));
+    utils.getDistributionFileContent('sensors', content, distDir));
 
   // Support
   init = utils.getFile(config.GAIA_DIR,
@@ -226,7 +284,7 @@ function execute() {
   content = null;
 
   utils.writeContent(init,
-    utils.getDistributionFileContent('support', content));
+    utils.getDistributionFileContent('support', content, distDir));
 
   // Browser
   init = utils.getFile(config.GAIA_DIR, 'apps', 'browser', 'js', 'init.json');
@@ -286,7 +344,7 @@ function execute() {
   };
 
   utils.writeContent(init,
-    utils.getDistributionFileContent('browser', content));
+    utils.getDistributionFileContent('browser', content, distDir));
 
   // Active Sensors
   init = utils.getFile(config.GAIA_DIR,
@@ -294,7 +352,7 @@ function execute() {
   content = { ambientLight: true };
 
   utils.writeContent(init,
-    utils.getDistributionFileContent('sensors', content));
+    utils.getDistributionFileContent('sensors', content, distDir));
 
   // Support
   init = utils.getFile(config.GAIA_DIR,
@@ -302,7 +360,7 @@ function execute() {
   content = null;
 
   utils.writeContent(init,
-    utils.getDistributionFileContent('support', content));
+    utils.getDistributionFileContent('support', content, distDir));
 
   // Network Types
   init = utils.getFile(config.GAIA_DIR,
@@ -313,7 +371,7 @@ function execute() {
   };
 
   utils.writeContent(init,
-    utils.getDistributionFileContent('network', content));
+    utils.getDistributionFileContent('network', content, distDir));
 
   // ICC / STK
   init = utils.getFile(config.GAIA_DIR,
@@ -322,7 +380,8 @@ function execute() {
     'defaultURL': 'http://www.mozilla.org/en-US/firefoxos/'
   };
 
-  utils.writeContent(init, utils.getDistributionFileContent('icc', content));
+  utils.writeContent(init,
+    utils.getDistributionFileContent('icc', content, distDir));
 
   // WAP UA profile url
   init = utils.getFile(config.GAIA_DIR,
@@ -330,7 +389,7 @@ function execute() {
   content = {};
 
   utils.writeContent(init,
-    utils.getDistributionFileContent('wapuaprof.json', content));
+    utils.getDistributionFileContent('wapuaprof.json', content, distDir));
 
   // WAP Push
   init = utils.getFile(config.GAIA_DIR, 'apps', 'wappush', 'js', 'whitelist.json');
@@ -400,7 +459,8 @@ function execute() {
   };
 
   utils.writeContent(init, 'Calendar.Presets = ' +
-               utils.getDistributionFileContent('calendar', content) + ';');
+               utils.getDistributionFileContent('calendar', content, distDir) +
+               ';');
 
   // Communications config
   init = utils.getFile(config.GAIA_DIR,
@@ -414,7 +474,7 @@ function execute() {
     'testToken': ''
   };
   utils.writeContent(init,
-    utils.getDistributionFileContent('communications', content));
+    utils.getDistributionFileContent('communications', content, distDir));
 
   // Communications External Services
   init = utils.getFile(config.GAIA_DIR,
@@ -431,7 +491,19 @@ function execute() {
 
   utils.writeContent(init,
     'var oauthflow = this.oauthflow || {}; oauthflow.params = ' +
-    utils.getDistributionFileContent('communications_services', content) + ';');
+    utils.getDistributionFileContent('communications_services', content,
+    distDir) + ';');
+
+  // Camera and Gallery image maximum resolution config
+  let defaultValue = {
+    'maxImagePixelSize': 5000000
+  };
+  customize = JSON.parse(utils.getDistributionFileContent('camera', defaultValue, distDir));
+  content = 'var CONFIG_MAX_IMAGE_PIXEL_SIZE = ' + customize.maxImagePixelSize + ';';
+  let file = utils.getFile(config.GAIA_DIR, GAIA_CORE_APP_SRCDIR, 'camera', 'js', 'config.js');
+  utils.writeContent(file, content);
+  file = utils.getFile(config.GAIA_DIR, GAIA_CORE_APP_SRCDIR, 'gallery', 'js', 'config.js');
+  utils.writeContent(file, content);
 }
 
 exports.execute = execute;

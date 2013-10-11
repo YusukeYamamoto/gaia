@@ -1,35 +1,17 @@
-mocha.setup({globals: ['alert', 'Picker']});
-
-requireApp('clock/js/emitter.js');
-requireApp('clock/js/view.js');
-requireApp('clock/js/panel.js');
-requireApp('clock/js/tabs.js');
-requireApp('clock/js/utils.js');
-
-requireApp('clock/test/unit/mocks/mock_picker.js');
-requireApp('clock/test/unit/mocks/mock_asyncstorage.js');
-requireApp('clock/js/timer.js');
-
 suite('Timer', function() {
-  var as, al, p, now, startAt, endAt, duration, minute, past;
+  var Timer, asyncStroage;
+  var al, now, startAt, endAt, duration;
 
-  suiteSetup(function() {
+  suiteSetup(function(done) {
     loadBodyHTML('/index.html');
 
-    al = alert;
-    as = asyncStorage;
-    p = typeof Picker !== 'undefined' ? Picker : undefined;
-
-    alert = function() {};
-    asyncStorage = MockAsyncStorage;
-    Picker = MockPicker;
-
-  });
-
-  suiteTeardown(function() {
-    alert = al;
-    asyncStorage = as;
-    Picker = p;
+    testRequire(['timer', 'mocks/mock_shared/js/async_storage'], {
+      mocks: ['shared/js/async_storage']
+    }, function(timer, mockAsyncStorage) {
+      Timer = timer;
+      asyncStorage = mockAsyncStorage;
+      done();
+    });
   });
 
   setup(function() {
@@ -40,8 +22,7 @@ suite('Timer', function() {
     duration = 5000;
     startAt = now;
     endAt = now + duration;
-
-    minute = 60000;
+    this.clock = this.sinon.useFakeTimers(startAt);
   });
 
   test('shape:prototype ', function() {
@@ -179,7 +160,6 @@ suite('Timer', function() {
   });
 
   test('tick ', function(done) {
-    this.timeout(5000);
     var isCalled = false;
     var timer = new Timer({
       startAt: startAt,
@@ -197,14 +177,13 @@ suite('Timer', function() {
     });
 
     timer.start();
+    this.clock.tick(duration);
   });
 
   test('tick to end ', function(done) {
-    this.timeout(3000);
-    now = Date.now();
     var timer = new Timer({
-      startAt: now,
-      endAt: now + 1000
+      startAt: startAt,
+      endAt: endAt
     });
 
     this.sinon.spy(timer, 'cancel');
@@ -218,6 +197,10 @@ suite('Timer', function() {
     });
 
     timer.start();
+    this.clock.tick(duration);
+
+    assert.isFalse(timer.cancel.called);
+    this.clock.tick(1000);
   });
 
   test('pause ', function() {
@@ -247,130 +230,71 @@ suite('Timer', function() {
     assert.isTrue(asyncStorage.removeItem.called);
   });
 
-  test('notify ', function() {
-    var timer = new Timer({
-      startAt: startAt,
-      endAt: endAt
-    });
-
-    this.sinon.spy(navigator, 'vibrate');
-
-    timer.notify();
-
-    assert.isTrue(navigator.vibrate.called);
-
-    // TODO: Add sound playback notification tests
-  });
-
-  suite('Timer.Panel', function() {
-    test('shape:prototype ', function() {
-      assert.ok(Timer.Panel);
-      assert.ok(Timer.Panel.prototype.dialog);
-      assert.ok(Timer.Panel.prototype.update);
-      assert.ok(Timer.Panel.prototype.toggle);
-      assert.ok(Timer.Panel.prototype.onclick);
-    });
-
-    test('shape:instance ', function() {
-      var panel = new Timer.Panel(document.getElementById('timer-panel'));
-      assert.ok(panel.nodes);
-      assert.isNull(panel.timer);
-    });
-
-    test('dialog ', function() {
-      var panel = new Timer.Panel(document.getElementById('timer-panel'));
-      var dialog = View.instance(panel.nodes.dialog);
-
-      // Defaults to isVisible = true;
-      panel.dialog();
-
-      assert.isTrue(dialog.visible);
-
-      panel.dialog({ isVisible: false });
-
-      assert.isFalse(dialog.visible);
-    });
-
-    test('update ', function() {
-      var panel = new Timer.Panel(document.getElementById('timer-panel'));
-
-      panel.update(10);
-
-      // TODO: update for l10n
-      assert.equal(panel.nodes.time.textContent, '00:00:10');
-
-      panel.update(0);
-
-      // TODO: update for l10n
-      assert.equal(panel.nodes.time.textContent, '00:00:00');
-    });
-
-    test('toggle(show, hide) ', function() {
-      var panel = new Timer.Panel(document.getElementById('timer-panel'));
-      var start = panel.nodes.start;
-      var pause = panel.nodes.pause;
-
-      panel.toggle(start, pause);
-
-      assert.isFalse(start.classList.contains('hide'));
-      assert.isTrue(pause.classList.contains('hide'));
-
-      panel.toggle(pause, start);
-
-      assert.isTrue(start.classList.contains('hide'));
-      assert.isFalse(pause.classList.contains('hide'));
-    });
-  });
-
-  suite('Timer.Panel, Events', function() {
-    var panel;
-
+  suite('notify ', function() {
     setup(function() {
-      this.sinon.spy(Timer.Panel.prototype, 'onclick');
-
-      asyncStorage.getItem = function(key, callback) {
-        callback('{"duration":5000}');
-      };
-
-      panel = new Timer.Panel(document.getElementById('timer-panel'));
-
-      this.sinon.spy(panel.timer, 'start');
-      this.sinon.spy(panel.timer, 'pause');
-      this.sinon.spy(panel.timer, 'cancel');
+      var sandbox = this.sinon;
+      this.sinon.spy(navigator, 'vibrate');
+      this.sinon.stub(window, 'Audio', function() {
+        this.play = sandbox.spy();
+        return this;
+      });
     });
 
-    test('click: start ', function() {
-      var start = panel.nodes.start;
-
-      start.dispatchEvent(
-        new CustomEvent('click')
-      );
-
-      assert.ok(panel.onclick.called);
-      assert.ok(panel.timer.start.called);
+    suite('vibrate and sound off', function() {
+      setup(function() {
+        this.timer = new Timer({
+          startAt: startAt,
+          endAt: endAt
+        });
+        this.timer.notify();
+      });
+      test('does not call vibrate', function() {
+        assert.isFalse(navigator.vibrate.called);
+      });
+      test('does not call Audio', function() {
+        assert.isFalse(Audio.called);
+      });
     });
 
-    test('click: pause ', function() {
-      var pause = panel.nodes.pause;
-
-      pause.dispatchEvent(
-        new CustomEvent('click')
-      );
-
-      assert.ok(panel.onclick.called);
-      assert.ok(panel.timer.pause.called);
+    suite('vibrate on', function() {
+      setup(function() {
+        this.timer = new Timer({
+          startAt: startAt,
+          endAt: endAt,
+          vibrate: true
+        });
+        this.timer.notify();
+      });
+      test('calls vibrate', function() {
+        assert.isTrue(navigator.vibrate.called);
+      });
     });
-
-    test('click: cancel ', function() {
-      var cancel = panel.nodes.cancel;
-      var timer = panel.timer;
-
-      cancel.dispatchEvent(
-        new CustomEvent('click')
-      );
-      assert.ok(panel.onclick.called);
-      assert.ok(timer.cancel.called);
-      assert.isNull(panel.timer);
+    suite('sound on', function() {
+      setup(function() {
+        this.timer = new Timer({
+          startAt: startAt,
+          endAt: endAt,
+          sound: 'test'
+        });
+        this.timer.notify();
+        this.audio = Audio.returnValues[0];
+      });
+      test('creates Audio', function() {
+        assert.ok(this.audio instanceof Audio);
+      });
+      test('sets loop to false', function() {
+        assert.isFalse(this.audio.loop);
+      });
+      test('sets mozAudioChannelType to alarm', function() {
+        assert.equal(this.audio.mozAudioChannelType, 'alarm');
+      });
+      test('sets sound', function() {
+        assert.equal(this.audio.src, 'shared/resources/media/alarms/test');
+      });
+      test('calls play', function() {
+        assert.isTrue(this.audio.play.called);
+      });
     });
   });
+
 });

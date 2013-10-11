@@ -1,14 +1,16 @@
 
 'use strict';
 
-var config = require('./config').config;
+var config;
 var utils = require('./utils');
 
 function debug(msg) {
   //dump('-*- preferences.js ' + msg + '\n');
 }
 
-function execute() {
+function execute(options) {
+  config = options
+  var gaia = utils.getGaia(config);
   const prefs = [];
 
   let homescreen = config.HOMESCREEN +
@@ -22,11 +24,12 @@ function execute() {
   let domains = [];
   domains.push(config.GAIA_DOMAIN);
 
-  utils.Gaia.webapps.forEach(function(webapp) {
+  gaia.webapps.forEach(function(webapp) {
     domains.push(webapp.domain);
   });
 
   prefs.push(['network.http.max-connections-per-server', 15]);
+  prefs.push(["dom.mozInputMethod.enabled", true]);
 
   // for https://bugzilla.mozilla.org/show_bug.cgi?id=811605 to let user know
   //what prefs is for ril debugging
@@ -139,7 +142,7 @@ function execute() {
     prefs.push(['extensions.gaia.device_pixel_suffix', suffix]);
 
     let appPathList = [];
-    utils.Gaia.webapps.forEach(function(webapp) {
+    gaia.webapps.forEach(function(webapp) {
       appPathList.push(webapp.sourceAppDirectoryName + '/' +
                        webapp.sourceDirectoryName);
     });
@@ -157,11 +160,12 @@ function execute() {
     // force enable content actor
     prefs.push(['devtools.debugger.enable-content-actors', true]);
     prefs.push(['devtools.debugger.prompt-connection', false]);
+    prefs.push(['devtools.debugger.forbid-certified-apps', false]);
+    prefs.push(['b2g.adb.timeout', 0]);
   }
 
   function writePrefs() {
-    let userJs = utils.getFile(config.GAIA_DIR,
-      config.PROFILE_FOLDER, 'user.js');
+    let userJs = utils.getFile(config.PROFILE_DIR, 'user.js');
     let content = prefs.map(function(entry) {
       return 'user_pref(\'' + entry[0] + '\', ' +
         JSON.stringify(entry[1]) + ');';
@@ -184,9 +188,9 @@ function execute() {
     });
   }
 
-  if (utils.Gaia.engine === 'xpcshell') {
+  if (gaia.engine === 'xpcshell') {
     writePrefs();
-  } else if (utils.Gaia.engine === 'b2g') {
+  } else if (gaia.engine === 'b2g') {
     setPrefs();
   }
 }

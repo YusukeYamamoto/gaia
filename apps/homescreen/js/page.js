@@ -63,9 +63,10 @@ Icon.prototype = {
   },
 
   isOfflineReady: function icon_isOfflineReady() {
-    return !(this.descriptor.isHosted &&
+    return this.descriptor.type === GridItemsFactory.TYPE.COLLECTION ||
+      !(this.descriptor.isHosted &&
       !this.descriptor.hasOfflineCache ||
-      this.descriptor.isBookmark);
+      this.descriptor.type === GridItemsFactory.TYPE.BOOKMARK);
   },
 
   /*
@@ -83,22 +84,31 @@ Icon.prototype = {
      */
 
     var container = this.container = document.createElement('li');
-    this.container.dataset.offlineReady = this.isOfflineReady();
+    var dataset = container.dataset;
+
+    dataset.offlineReady = this.isOfflineReady();
     container.className = 'icon';
     if (this.descriptor.hidden) {
       delete this.descriptor.hidden;
-      container.dataset.visible = false;
+      dataset.visible = false;
     }
 
     var descriptor = this.descriptor;
-    container.dataset.isIcon = true;
+    dataset.isIcon = true;
     this._descriptorIdentifiers.forEach(function(prop) {
       var value = descriptor[prop];
       if (value || value === 0)
-        container.dataset[prop] = value;
+        dataset[prop] = value;
     });
 
-    var localizedName = descriptor.localizedName || descriptor.name;
+    // Collection (as bookmarks)
+    if (descriptor.type === GridItemsFactory.TYPE.COLLECTION) {
+      dataset.isCollection = true;
+      dataset.collectionId = descriptor.id;
+      dataset.collectionName = descriptor.name;
+    }
+
+    var localizedName = this.getName();
     container.setAttribute('role', 'button');
     container.setAttribute('aria-label', localizedName);
 
@@ -297,15 +307,24 @@ Icon.prototype = {
       return;
     }
 
+    var canvas = this.createCanvas(img, this.descriptor.type);
+    canvas.toBlob(this.renderBlob.bind(this));
+  },
+
+  createCanvas: function icon_createCanvas(img, type) {
     var canvas = document.createElement('canvas');
     canvas.width = (MAX_ICON_SIZE + ICON_PADDING_IN_CANVAS) * SCALE_RATIO;
     canvas.height = (MAX_ICON_SIZE + ICON_PADDING_IN_CANVAS) * SCALE_RATIO;
 
     var ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-    ctx.shadowBlur = 2;
-    ctx.shadowOffsetY = 2;
+
+    // Collection icons are self contained and should NOT be manipulated
+    if (type !== GridItemsFactory.TYPE.COLLECTION) {
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 2;
+      ctx.shadowOffsetY = 2;
+    }
 
     // Deal with very small or very large icons
     img.width =
@@ -323,13 +342,17 @@ Icon.prototype = {
                   width, height);
     ctx.fill();
 
-    canvas.toBlob(this.renderBlob.bind(this));
+    return canvas;
   },
 
   // The url that is passed as a parameter to the callback must be revoked
   loadRenderedIcon: function icon_loadRenderedIcon(callback) {
     var img = this.img;
-    img.src = window.URL.createObjectURL(this.descriptor.renderedIcon);
+    var blob = this.descriptor.renderedIcon;
+    if (!blob) {
+      blob = GridManager.getBlobByDefault(this.app);
+    }
+    img.src = window.URL.createObjectURL(blob);
     if (callback) {
       img.onload = img.onerror = function done() {
         callback(this.src);
@@ -391,7 +414,7 @@ Icon.prototype = {
     this.descriptor = descriptor;
     descriptor.removable === true ? this.appendOptions() : this.removeOptions();
 
-    // Update offline availability
+    // Update dataset properties
     this.container.dataset.offlineReady = this.isOfflineReady();
 
     if (descriptor.updateTime == oldDescriptor.updateTime &&
@@ -426,11 +449,41 @@ Icon.prototype = {
   },
 
   /*
+   * Sets a non-translationable name
+   *
+   * @param{string} non-translationable name
+   */
+  setName: function icon_setName(name) {
+    this.label.textContent = this.descriptor.customName = name;
+    this.applyOverflowTextMask();
+    GridManager.markDirtyState();
+  },
+
+  /*
+   * Returns the name icon
+   */
+  getName: function icon_getName() {
+    var desc = this.descriptor;
+    return desc.customName || desc.localizedName || desc.name;
+  },
+
+  /*
+   * Sets the icon's image
+   *
+   * @param{string} the new icon
+   */
+  setImage: function icon_setImage(image) {
+    this.descriptor.icon = image;
+    this.fetchImageData();
+  },
+
+  /*
    * Translates the label of the icon
    */
   translate: function icon_translate() {
     var descriptor = this.descriptor;
-    if (descriptor.bookmarkURL)
+    if (descriptor.type === GridItemsFactory.TYPE.BOOKMARK ||
+        descriptor.customName)
       return;
 
     var app = this.app;
@@ -441,12 +494,18 @@ Icon.prototype = {
     if (!manifest)
       return;
 
-    var iconsAndNameHolder = manifest;
-    var entryPoint = descriptor.entry_point;
-    if (entryPoint)
-      iconsAndNameHolder = manifest.entry_points[entryPoint];
+    var localizedName;
 
-    var localizedName = new ManifestHelper(iconsAndNameHolder).name;
+    if (descriptor.type === GridItemsFactory.TYPE.COLLECTION) {
+      localizedName = navigator.mozL10n.get(manifest.name);
+    } else {
+      var iconsAndNameHolder = manifest;
+      var entryPoint = descriptor.entry_point;
+      if (entryPoint)
+        iconsAndNameHolder = manifest.entry_points[entryPoint];
+
+      localizedName = new ManifestHelper(iconsAndNameHolder).name;
+    }
 
     this.label.textContent = localizedName;
     if (descriptor.localizedName != localizedName) {
@@ -470,6 +529,10 @@ Icon.prototype = {
 
     var draggableElem = this.draggableElem = document.createElement('div');
     draggableElem.className = 'draggable';
+    if (this.descriptor.type !== GridItemsFactory.TYPE.COLLECTION) {
+      // Collections cannot be appended to others so this operation isn't needed
+      this.savePostion(draggableElem.dataset);
+    }
 
     // For some reason, cloning and moving a node re-triggers the blob
     // URI to be validated. So we assign a new blob URI to the image
@@ -498,6 +561,30 @@ Icon.prototype = {
     document.body.appendChild(draggableElem);
   },
 
+  /*
+   * Saves the current container (page or dock) and  position.
+   *
+   * * pageType -> 'dock' or 'page' types
+   * * pageIndex -> index of page (no needed for dock)
+   * * iconIndex -> index of icon inside page or dock container
+   *
+   * @param{Object} Source object to set results
+   */
+  savePostion: function icon_savePosition(obj) {
+    var page;
+
+    if (this.container.parentNode === DockManager.page.olist) {
+      page = DockManager.page;
+      obj.pageType = 'dock';
+    } else {
+      page = GridManager.pageHelper.getCurrent();
+      obj.pageType = 'page';
+      obj.pageIndex = GridManager.pageHelper.getCurrentPageNumber();
+    }
+
+    obj.iconIndex = page.getIconIndex(this.container);
+  },
+
   addClassToDragElement: function icon_addStyleToDragElement(className) {
     this.draggableElem.classList.add(className);
   },
@@ -507,18 +594,32 @@ Icon.prototype = {
   },
 
   /*
-   * This method is invoked when the drag gesture finishes
+   * This method is invoked when the drag gesture finishes. If x and y are
+   * defined, the icon flies to this position
+   *
+   * @param{Function} callback will be performed when animations finishes
+   *
+   * @param{Integer} x-coordinate
+   *
+   * @param{Integer} y-coordinate
+   *
+   * @param{Integer} scale factor of the animation
    */
-  onDragStop: function icon_onDragStop(callback) {
+  onDragStop: function icon_onDragStop(callback, tx , ty, scale) {
     var container = this.container;
 
-    var rect = container.getBoundingClientRect();
-    var x = (Math.abs(rect.left + rect.right) / 2) % window.innerWidth;
-    x -= this.initXCenter;
+    var x = tx,
+        y = ty;
 
-    var y = (rect.top + rect.bottom) / 2 +
-            (this.initHeight - (rect.bottom - rect.top)) / 2;
-    y -= this.initYCenter;
+    if (typeof x === 'undefined') {
+      var rect = container.getBoundingClientRect();
+      x = (Math.abs(rect.left + rect.right) / 2) % window.innerWidth;
+      x -= this.initXCenter;
+
+      y = (rect.top + rect.bottom) / 2 +
+          (this.initHeight - (rect.bottom - rect.top)) / 2;
+      y -= this.initYCenter;
+    }
 
     var draggableElem = this.draggableElem;
     var style = draggableElem.style;
@@ -542,7 +643,8 @@ Icon.prototype = {
     }, this.FALLBACK_DRAG_STOP_DELAY);
 
     var content = draggableElem.querySelector('div');
-    content.style.MozTransform = 'scale(1)';
+    scale = typeof scale !== 'undefined' ? scale : 1;
+    content.style.MozTransform = 'scale(' + scale + ')';
     content.addEventListener('transitionend', function tEnd(e) {
       e.target.removeEventListener('transitionend', tEnd);
       if (fallbackID !== null) {
@@ -576,7 +678,7 @@ Icon.prototype = {
   }
 };
 
-function TemplateIcon(isBookmark) {
+function TemplateIcon(iconable) {
   var descriptor = {
     name: 'templateIcon',
     hidden: true,
@@ -584,7 +686,7 @@ function TemplateIcon(isBookmark) {
   };
 
   var app = {};
-  if (isBookmark) {
+  if (iconable) {
     app.iconable = true;
   }
 
@@ -616,12 +718,12 @@ TemplateIcon.prototype = {
  * @param {Array} icons [optional]
  *                List of Icon objects.
  */
-function Page(container, icons) {
+function Page(container, icons, numberOfIcons) {
   this.container = this.movableContainer = container;
   if (icons)
     this.render(icons);
   this.iconsWhileDragging = [];
-  this.maxIcons = GridManager.pageHelper.maxIconsPerPage;
+  this.maxIcons = numberOfIcons || GridManager.pageHelper.maxIconsPerPage;
 }
 
 Page.prototype = {
@@ -640,8 +742,8 @@ Page.prototype = {
    */
   render: function pg_render(icons) {
     this.olist = document.createElement('ol');
-    for (var i = 0; i < icons.length; i++) {
-      this.appendIcon(icons[i]);
+    for (var i = 0, icon; icon = icons[i++];) {
+      this.appendIcon(icon);
     }
     this.container.appendChild(this.olist);
   },
@@ -700,7 +802,6 @@ Page.prototype = {
       if (this.iconsWhileDragging.length === 0)
         this.iconsWhileDragging = Array.prototype.slice.call(iconList, 0,
                                                              iconList.length);
-
       this.animate(this.iconsWhileDragging, originIcon.container,
                    targetIcon.container);
     } else {
@@ -817,7 +918,7 @@ Page.prototype = {
       if (elem.classList.contains('options')) {
         var icon = GridManager.getIcon(elem.parentNode.dataset);
         if (icon.app)
-          Homescreen.showAppDialog(icon.app);
+          Homescreen.showAppDialog(icon);
       }
     } else if ('isIcon' in elem.dataset && this.olist &&
                !this.olist.getAttribute('disabled')) {
@@ -851,6 +952,31 @@ Page.prototype = {
     setTimeout(function disableTapTimeout() {
       olist.removeAttribute('disabled');
     }, time || this.DISABLE_TAP_EVENT_DELAY);
+  },
+
+  /*
+   * Adds an icon at the position specified
+   *
+   * @param{Object} icon object
+   * @param{Number} index to insert at
+   */
+  appendIconAt: function pg_appendIconAt(icon, index) {
+    var olist = this.olist,
+        children = this.olist.children;
+
+    if (children[index] && children[index] === icon.container) {
+      return;
+    }
+
+    if (!icon.container) {
+      icon.render();
+    }
+
+    if (children[index]) {
+      olist.insertBefore(icon.container, children[index]);
+    } else {
+      olist.appendChild(icon.container);
+    }
   },
 
   /*
@@ -897,6 +1023,25 @@ Page.prototype = {
   },
 
   /*
+   * Returns the last visible icon of the page
+   */
+  getLastVisibleIcon: function pg_getLastVisibleIcon() {
+    if (this.getNumIcons() <= this.maxIcons) {
+      return this.getLastIcon();
+    } else {
+      var node = this.olist.children[this.maxIcons - 1];
+      if (this.iconsWhileDragging.length > 0)
+        node = this.iconsWhileDragging[this.maxIcons - 1];
+
+      if (!node) {
+        return null;
+      }
+
+      return GridManager.getIcon(node.dataset);
+    }
+  },
+
+  /*
    * Returns the first icon of the page
    */
   getFirstIcon: function pg_getFirstIcon() {
@@ -913,7 +1058,7 @@ Page.prototype = {
    * Move the apps in position higher than 'pos' one position ahead if they have
    * a desiredPosition lower than their actual position
    */
-  _moveAhead: function(pos) {
+  _moveAhead: function pg_moveAhead(pos) {
     // When a new sv app is installed, the previously sv apps installed in
     // higher positions will have been moved.
     // This function restores their previous position if needed
@@ -929,15 +1074,23 @@ Page.prototype = {
   },
 
   /*
+   * Return true if the Page has free space, return false otherwise
+   */
+  hasEmptySlot: function pg_hasEmptySlot() {
+    return this.getNumIcons() < this.maxIcons;
+  },
+
+  /*
    * Insert an icon in the page
    */
-  _insertIcon: function insertIcon(icon) {
+  _insertIcon: function pg_insertIcon(icon) {
     var iconList = this.olist.children;
     var container = icon.container;
 
     // Inserts the icon in the closest possible space to its desired position,
     // keeping the order of all existing icons with desired position
-    if (icon.descriptor && icon.descriptor.desiredPos !== undefined) {
+    if (icon.descriptor && icon.descriptor.desiredPos !== undefined &&
+        Configurator.isSimPresentOnFirstBoot) {
       var desiredPos = icon.descriptor.desiredPos;
       var manifest = icon.descriptor.manifestURL;
       // Add to the installed SV apps array
@@ -1014,6 +1167,18 @@ Page.prototype = {
       var icon = GridManager.getIcon(node.dataset);
       return icon.getDescriptor();
     });
+  },
+
+  getIndex: function pg_getIndex() {
+    var pages = this.container.parentNode.children;
+    pages = Array.prototype.slice.call(pages, 0, pages.length);
+    return pages.indexOf(this.container);
+  },
+
+  getIconIndex: function pg_getIconIndex(icon) {
+    var icons = this.olist.children;
+    icons = Array.prototype.slice.call(icons, 0, icons.length);
+    return icons.indexOf(icon);
   }
 };
 

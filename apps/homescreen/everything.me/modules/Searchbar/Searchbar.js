@@ -1,9 +1,13 @@
+'use strict';
+
 Evme.Searchbar = new function Evme_Searchbar() {
     var NAME = "Searchbar", self = this,
-        el = null, elForm = null, elClear = null, elDefaultText = null,
+        el = null, elForm = null, elDefaultText = null,
         value = "", isFocused = false,
         timeoutSearchOnBackspace = null, timeoutPause = null, timeoutIdle = null,
         intervalPolling = null,
+
+	pending,
         
         SEARCHBAR_POLLING_INTERVAL = 300,
         TIMEOUT_BEFORE_SEARCHING_ON_BACKSPACE = 500,
@@ -58,11 +62,7 @@ Evme.Searchbar = new function Evme_Searchbar() {
         return isFocused;
     };
     
-    this.setValue = function setValue(newValue, bPerformSearch, bDontBlur) {
-        if (newValue !== "") {
-            self.showClearButton();
-        }
-        
+    this.setValue = function setValue(newValue, bPerformSearch, bDontBlur) {      
         if (value !== newValue) {
             value = newValue;
             el.value = value;
@@ -227,7 +227,8 @@ Evme.Searchbar = new function Evme_Searchbar() {
             return;
         }
         isFocused = true;
-        
+        self.showClearButton();
+
         Evme.Brain && Evme.Brain[NAME].onfocus({
             "e": e
         });
@@ -238,6 +239,7 @@ Evme.Searchbar = new function Evme_Searchbar() {
             return;
         }
         
+        self.hideClearButton();
         isFocused = false;
         
         Evme.Brain && Evme.Brain[NAME].onblur({

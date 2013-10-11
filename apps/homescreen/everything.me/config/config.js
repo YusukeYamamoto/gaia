@@ -1,36 +1,29 @@
-Evme.__config = {
+Evme.Config = Evme.__config = {
     "appVersion": "2.0.145",
     "apiHost": "api.everything.me",
     "apiKey": "65106dbdb655b25f2defa18ab7d1ecd8",
     "authCookieName": "prod-credentials",
-    "debugMode": false,
-    "unsupportedRedirectMode": false,
-    "buildNum": 145,
-    "timeoutBeforeSessionInit": 0,
     "apps": {
         "appsPerRow": 4,
         "appHeight": 89,
         "widthForFiveApps": 400,
         "displayInstalledApps": true
     },
+
+    // how many app icons in a Collection icon
+    "numberOfAppInCollectionIcon": 3,
+
     "numberOfAppsToLoad": 16,
-    "minHeightForMoreButton": 470,
-    "minimumLettersForSearch": 1,
-    "defaultBGImage": "",
-    "bgImageSize": [320, 460],
-     // 24 hours
-    "taskerTriggerInterval": 24 * 60 * 60 * 1000,
     "searchbar": {
         "timeBeforeEventPause": 10000,
         "timeBeforeEventIdle": 10000
     },
     "searchSources": {
         "URL": "url",
-        "TRENDING": "trnd",
         "SHORTCUT": "shrt",
         "SHORTCUT_ENTITY": "enty",
         "SHORTCUT_CONTINUE_BUTTON": "shrb",
-        "SHORTCUT_SMART_FOLDER": "fldr",
+	"SHORTCUT_COLLECTION": "fldr",
         "RETURN_KEY": "rtrn",
         "SUGGESTION": "sugg",
         "SPELLING": "spel",
@@ -61,43 +54,75 @@ Evme.__config = {
         }
     },
     "maxHistoryEntries": "10",
-    "iconsGroupSettings": [
-        {
-            "x": 28,
-            "y": 13,
-            "size": 33,
-            "darken": 0.5,
-            "shadowOffset": 2,
-            "shadowBlur": 1,
-            "shadowOpacity": 0.2
-        },
-        {
-            "x": 22,
-            "y": 7,
-            "size": 33,
-            "darken": 0.3,
-            "shadowOffset": 2,
+    "emptyCollectionIcon": "/everything.me/images/empty-collection.png",
+    "iconsGroupSettings": {
+        "1": [{
+            "x": 'center',
+            "y": 'center',
+            "size": 0.65,
+            "shadowOffsetX": 0,
+            "shadowOffsetY": 2,
             "shadowBlur": 2,
-            "shadowOpacity": 0.2
+            "shadowOpacity": 0.8
+        }],
+        "2": [{
+            "x": 24,
+            "y": 'center',
+            "size": 0.5,
+            "shadowOffsetX": 0,
+            "shadowOffsetY": 2,
+            "shadowBlur": 2,
+            "shadowOpacity": 0.7
         },
         {
-            "x": 8,
-            "y": 3,
-            "size": 38,
-            "shadowOffset": 4,
-            "shadowOffsetX": 2,
-            "shadowBlur": 4,
-            "shadowOpacity": 0.3
-        }
-    ],
+            "x": 6,
+            "y": 'center',
+            "size": 0.6,
+            "shadowOffsetX": 0,
+            "shadowOffsetY": 2,
+            "shadowBlur": 2,
+            "shadowOpacity": 0.8
+        }],
+        "3": [{
+            "x": 'right',
+            "y": 'center',
+            "size": 0.45,
+            "shadowOffsetX": 1,
+            "shadowOffsetY": 1,
+            "shadowBlur": 2,
+            "shadowOpacity": 0.4
+        },
+        {
+            "x": 'center+4',
+            "y": 'center',
+            "size": 0.5,
+            "shadowOffsetX": 1,
+            "shadowOffsetY": 1,
+            "shadowBlur": 2,
+            "shadowOpacity": 0.7
+        },
+        {
+            "x": 'left',
+            "y": 'center',
+            "size": 0.6,
+            "shadowOffsetX": 1,
+            "shadowOffsetY": 1,
+            "shadowBlur": 2,
+            "shadowOpacity": 0.9
+        }]
+    },
     "design": {
         "apps": {
             "defaultIconUrl": {
                 "20": [
-                    "/everything.me/images/icn/default1.png?cb=1346169250",
-                    "/everything.me/images/icn/default2.png?cb=1346169250",
-                    "/everything.me/images/icn/default3.png?cb=1346169250"
+			"/everything.me/images/icn/default1.png?cb=1346169250",
+			"/everything.me/images/icn/default2.png?cb=1346169250",
+			"/everything.me/images/icn/default3.png?cb=1346169250"
                 ]
+	    },
+	    "defaultAppIcon": {
+		"normal": "/style/images/default.png",
+		"high": "/style/images/default@2x.png"
             }
         }
     },
@@ -132,6 +157,7 @@ Evme.__config = {
         "320": "dating",
         "286": "electronics",
         "248": "email",
+        "376": "entertainment",
         "361": "environment",
         "282": "fashion",
         "277": "funny",
@@ -155,8 +181,8 @@ Evme.__config = {
         "352": "top-apps",
         "306": "travel",
         "213": "tv",
-        "357": "utilities",
         "211": "video",
-        "249": "weather"
+        "249": "weather",
+        "357": "utilities"
     }
 };

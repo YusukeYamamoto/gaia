@@ -488,13 +488,27 @@ var ThreadUI = global.ThreadUI = {
     var activity = new MozActivity({
       name: 'pick',
       data: {
-        type: 'webcontacts/contact'
+        type: 'webcontacts/tel'
       }
     });
 
     activity.onsuccess = (function() {
-      Utils.getContactDisplayInfo(Contacts.findByPhoneNumber.bind(Contacts),
-        activity.result.number,
+      // As we have the whole contact from the activity, there is no
+      // need for adding a second request to Contacts API.
+      var dummyResolver = function dummyResolver(phoneNumber, cb) {
+        cb(activity.result);
+      };
+
+      if (!activity.result ||
+          !activity.result.tel ||
+          !activity.result.tel.length ||
+          !activity.result.tel[0].value) {
+        console.error('The pick activity result is invalid.');
+        return;
+      }
+
+      Utils.getContactDisplayInfo(dummyResolver,
+        activity.result.tel[0].value,
         (function onData(data) {
         data.source = 'contacts';
         this.recipients.add(data);
@@ -510,12 +524,10 @@ var ThreadUI = global.ThreadUI = {
   updateComposerHeader: function thui_updateComposerHeader() {
     var recipientCount = this.recipients.length;
     if (recipientCount > 0) {
-      this.contactPickButton.classList.add('disabled');
       navigator.mozL10n.localize(this.headerText, 'recipient', {
           n: recipientCount
       });
     } else {
-      this.contactPickButton.classList.remove('disabled');
       navigator.mozL10n.localize(this.headerText, 'newMessage');
     }
     // Check if we need to enable send button.
@@ -659,8 +671,13 @@ var ThreadUI = global.ThreadUI = {
 
     // Use backend api for precise sms segmentation information.
     var smsInfoRequest = this._mozMobileMessage.getSegmentInfoForText(value);
-    smsInfoRequest.onsuccess = (function onSmsInfo(e) {
-      var smsInfo = e.target.result;
+    smsInfoRequest.onsuccess = (function onSmsInfo(event) {
+      if (Compose.type !== 'sms') {
+        // bailout if the type changed since the request started
+        return;
+      }
+
+      var smsInfo = event.target.result;
       var segments = smsInfo.segments;
       var availableChars = smsInfo.charsAvailableInLastSegment;
 
@@ -1482,11 +1499,14 @@ var ThreadUI = global.ThreadUI = {
 
   cleanFields: function thui_cleanFields(forceClean) {
     var clean = (function clean() {
-      Compose.clear();
+      // Compose.clear might cause a conversion from mms -> sms
+      // Therefore we're reseting the message type here because
+      // in messageComposerTypeHandler we're using this value to know
+      // if the message type changed, and to display the convertNotice
+      // accordingly
+      this.composeForm.dataset.messageType = 'sms';
 
-      // Compose.clear might cause a conversion from mms -> sms, we need
-      // to ensure the message is hidden after we clear fields.
-      this.convertNotice.classList.add('hide');
+      Compose.clear();
 
       // reset the counter
       this.sendButton.dataset.counter = '';
@@ -2028,21 +2048,24 @@ var ThreadUI = global.ThreadUI = {
     var number = opts.number || '';
 
     Contacts.findByPhoneNumber(number, function(results) {
-      var ul = document.createElement('ul');
       var isContact = results && results.length;
       var contact = isContact ? results[0] : {
         tel: [{ value: number }]
       };
+      var ul;
 
-      ul.classList.add('contact-prompt');
+      if (isContact) {
+        ul = document.createElement('ul');
+        ul.classList.add('contact-prompt');
 
-      this.renderContact({
-        contact: contact,
-        input: number,
-        target: ul,
-        isContact: isContact,
-        isSuggestion: false
-      });
+        this.renderContact({
+          contact: contact,
+          input: number,
+          target: ul,
+          isContact: isContact,
+          isSuggestion: false
+        });
+      }
 
       this.prompt({
         name: name,
@@ -2107,6 +2130,8 @@ var ThreadUI = global.ThreadUI = {
     var name = opt.name || number || email;
     var isContact = opt.isContact || false;
     var inMessage = opt.inMessage || false;
+    var header = '';
+    var section = typeof opt.body !== 'undefined' ? opt.body : '';
     var items = [];
     var params, props;
 
@@ -2120,8 +2145,26 @@ var ThreadUI = global.ThreadUI = {
       return;
     }
 
+    // Create a params object.
+    //  - complete: callback to be invoked when a
+    //      button in the menu is pressed
+    //  - section: node to display above
+    //      the options in the option menu.
+    //  - header: string or node to display in the
+    //      in the header of the option menu
+    //  - items: array of options to display in menu
+    //
+    params = {
+      complete: complete,
+      section: section,
+      header: '',
+      items: null
+    };
+
     // All non-email activations will see a "Call" option
     if (email) {
+      header = email;
+
       items.push({
         l10nId: 'sendEmail',
         method: function oCall(param) {
@@ -2130,6 +2173,8 @@ var ThreadUI = global.ThreadUI = {
         params: [email]
       });
     } else {
+      header = number;
+
       items.push({
         l10nId: 'call',
         method: function oCall(param) {
@@ -2152,17 +2197,9 @@ var ThreadUI = global.ThreadUI = {
       }
     }
 
-
-    // Combine the items and complete callback into
-    // a single params object.
-    params = {
-      items: items,
-      complete: complete
-    };
-
-    // If this is a known contact, display an option menu
-    // with buttons for "Call" and "Cancel"
-    params.section = typeof opt.body !== 'undefined' ? opt.body : name;
+    // Define the initial header, items and section properties
+    params.header = header;
+    params.items = items;
 
     if (!isContact) {
 
@@ -2170,7 +2207,10 @@ var ThreadUI = global.ThreadUI = {
         number ? {tel: number} : {email: email}
       ];
 
-      params.header = number;
+      // Unknown participants will have options to
+      //  - Create A New Contact
+      //  - Add To An Existing Contact
+      //
       params.items.push({
           l10nId: 'createNewContact',
           method: function oCreate(param) {

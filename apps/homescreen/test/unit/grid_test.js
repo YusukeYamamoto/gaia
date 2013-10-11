@@ -2,6 +2,9 @@
 
 mocha.globals(['mozRequestAnimationFrame']);
 
+require('/shared/test/unit/mocks/mock_navigator_moz_settings.js');
+
+requireApp('homescreen/test/unit/mock_l10n.js');
 requireApp('homescreen/test/unit/mock_page.js');
 requireApp('homescreen/test/unit/mock_icon.js');
 requireApp('homescreen/test/unit/mock_dock_manager.js');
@@ -15,6 +18,7 @@ requireApp('homescreen/test/unit/mock_manifest_helper.js');
 requireApp('homescreen/test/unit/mock_icon_retriever.js');
 
 require('/shared/js/screen_layout.js');
+requireApp('homescreen/js/grid_components.js');
 requireApp('homescreen/js/grid.js');
 
 var mocksHelperForGrid = new MocksHelper([
@@ -29,7 +33,8 @@ var mocksHelperForGrid = new MocksHelper([
   'Configurator',
   'HIDDEN_APPS',
   'ManifestHelper',
-  'getDefaultIcon'
+  'getDefaultIcon',
+  'Configurator'
 ]);
 
 mocksHelperForGrid.init();
@@ -41,6 +46,7 @@ suite('grid.js >', function() {
 
   var wrapperNode, containerNode;
   var realMozApps;
+  var realMozSettings;
 
   var mocksHelper = mocksHelperForGrid;
 
@@ -50,11 +56,14 @@ suite('grid.js >', function() {
     window.navigator.mozApps = {
       mgmt: MockAppsMgmt
     };
+    realMozSettings = navigator.mozSettings;
+    navigator.mozSettings = MockNavigatorSettings;
 
   });
 
   suiteTeardown(function() {
     window.navigator.mozApps = realMozApps;
+    navigator.mozSettings = realMozSettings;
 
     mocksHelper.suiteTeardown();
   });
@@ -318,6 +327,17 @@ suite('grid.js >', function() {
   });
 
   suite('install single variant apps >', function() {
+    var prevMaxIconNumber;
+
+    suiteSetup(function() {
+      prevMaxIconNumber = MockPage.prototype.mMAX_ICON_NUMBER;
+      MockPage.prototype.mMAX_ICON_NUMBER = 3;
+    });
+
+    suiteTeardown(function() {
+      MockPage.prototype.mMAX_ICON_NUMBER = prevMaxIconNumber;
+    });
+
     var mockAppSV;
 
     // This var shoud match the content of mock_configurator
@@ -339,9 +359,10 @@ suite('grid.js >', function() {
       }
     ];
 
-    svApps.forEach(function(svApp) {
-      test('should save the icon with desiredPos in the correctpage',
+    svApps.forEach((function(svApp) {
+      test('Should save the icon with desiredPos in the correct page',
            function(done) {
+        Configurator.mSimPresentOnFirstBoot = true;
         MockHomeState.mLastSavedGrid = null;
         mockAppSV = new MockApp({'manifestURL': svApp.manifest});
         MockAppsMgmt.mTriggerOninstall(mockAppSV);
@@ -350,23 +371,95 @@ suite('grid.js >', function() {
           var grd = MockHomeState.mLastSavedGrid;
 
           assert.ok(grd, 'Grid is not set');
-          assert.equal(grd.length, svApp.screen + 1,
+          assert.equal(grd.length, svApp.screen + 2,
                        'Grid does not have the right number of screens');
           assert.equal(grd[svApp.screen].index, svApp.screen,
                        'App was not installed on the correct screen');
           assert.ok(grd[svApp.screen].icons,
                     'The screen does not have a icons structure');
 
-          var icns = grd[svApp.screen].icons[0];
+          var icns = grd[svApp.screen + 1].icons[0];
           assert.ok(icns, 'The screen does not have any icons');
           assert.isTrue(icns.desiredPos !== undefined,
                         'The single variant app does not have a desiredPos');
           assert.equal(icns.desiredPos, svApp.location,
                        'App does not have the correct DesiredPosition');
-
           done();
         }, SAVE_STATE_WAIT_TIMEOUT);
+      });
+    }));
+  });
 
+  suite('install single variant apps without SIM on first run >', function() {
+    var prevMaxIconNumber;
+    var mockAppSV;
+
+    suiteSetup(function() {
+      prevMaxIconNumber = MockPage.prototype.mMAX_ICON_NUMBER;
+      MockPage.prototype.mMAX_ICON_NUMBER = 3;
+      MockHomeState.mUseTestGrids = true;
+    });
+
+    suiteTeardown(function() {
+      MockPage.prototype.mMAX_ICON_NUMBER = prevMaxIconNumber;
+      MockHomeState.mUseTestGrids = false;
+    });
+
+    // This var shoud match the content of mock_configurator
+    // If we want to change a use Case, we need to change it here and in its
+    // definition in mock_configurator
+    var testCases = [
+      {
+        'name': 'One grid with space',
+        'manifest' : 'https://aHost/aMan5',
+        'expectedPage': 2,
+        'expectedNumberOfPages': 4
+      },
+      {
+        'name': 'One grid without space',
+        'manifest' : 'https://aHost/aMan6',
+        'expectedPage': 3,
+        'expectedNumberOfPages': 4
+      },
+      {
+        'name': '1st grid with space, 2nd without space',
+        'manifest' : 'https://aHost/aMan7',
+        'expectedPage': 4,
+        'expectedNumberOfPages': 5
+      },
+      {
+        'name': '1st and 3rd with space, 2nd without it',
+        'manifest' : 'https://aHost/aMan8',
+        'expectedPage': 4,
+        'expectedNumberOfPages': 6
+      }
+    ];
+
+    testCases.forEach(function(testCase) {
+     test('Should save the icon with desiredPos in the first page with space:' +
+          testCase.name, function(done) {
+        Configurator.mSimPresentOnFirstBoot = false;
+        mockAppSV = new MockApp({'manifestURL': testCase.manifest});
+        MockAppsMgmt.mTriggerOninstall(mockAppSV);
+
+        setTimeout(function() {
+          var grd = MockHomeState.mLastSavedGrid;
+          var expectedPage = grd[testCase.expectedPage];
+          assert.ok(grd, 'Grid is not set');
+
+          assert.equal(grd.length, testCase.expectedNumberOfPages,
+                       'Grid does not have the right number of screens');
+          assert.ok(expectedPage,
+                    'The expected screen does not exist');
+          assert.ok(expectedPage.icons && expectedPage.icons[0],
+                    'The screen does not have a icons structure');
+
+          var expectedIcon = expectedPage && expectedPage.icons &&
+                             expectedPage.icons[expectedPage.icons.length - 1];
+          assert.equal(expectedIcon.manifestURL, testCase.manifest,
+                       'App was not installed on the correct screen');
+          done();
+        }, SAVE_STATE_WAIT_TIMEOUT);
       });
     });
   });
@@ -381,9 +474,14 @@ suite('grid.js >', function() {
         },
         {
           role: 'app',
-          entry_points: [
-            {}, {}
-          ]
+          entry_points: {
+            'dialer': {
+              'icons': {}
+            },
+            'contacts' : {
+              'icons': {}
+            }
+          }
         }
       ];
 

@@ -59,6 +59,7 @@ var KeyboardManager = {
   // 'keyboard.gaiamobile.org' : {
   //   'English': aIframe
   // }
+  inputTypeTable: {},
   runningLayouts: {},
   showingLayout: {
     frame: null,
@@ -125,14 +126,18 @@ var KeyboardManager = {
       }
     });
 
-    // XXX: Bug 906096, need to remove this when the IME WebAPI is ready
-    //      on Firefox Nightly
-    if (navigator.mozKeyboard) {
-      navigator.mozKeyboard.onfocuschange = function onfocuschange(evt) {
-        evt.detail.inputType = evt.detail.type;
-        self.inputFocusChange(evt);
-      };
-    }
+    window.addEventListener('localized', function(evt) {
+      self.updateLayouts(evt);
+    });
+
+    // generate typeTable
+    this.inputTypeTable =
+    Object.keys(TYPE_GROUP_MAPPING).reduce(function(res, curr) {
+      var k = TYPE_GROUP_MAPPING[curr];
+      res[k] = res[k] || [];
+      res[k].push(curr);
+      return res;
+    }, {});
   },
 
   getHeight: function kn_getHeight() {
@@ -151,9 +156,14 @@ var KeyboardManager = {
       self.launchLayoutFrame(self.keyboardLayouts[initType][initIndex]);
 
       // Let chrome know about how many keyboards we have
+      // need to expose all input type from inputTypeTable
       var layouts = {};
       Object.keys(self.keyboardLayouts).forEach(function(k) {
-        layouts[k] = self.keyboardLayouts[k].length;
+        var typeTable = self.inputTypeTable[k];
+        for (var i in typeTable) {
+          var inputType = typeTable[i];
+          layouts[inputType] = self.keyboardLayouts[k].length;
+        }
       });
 
       var event = document.createEvent('CustomEvent');
@@ -170,8 +180,10 @@ var KeyboardManager = {
     var self = this;
     apps.forEach(function(app) {
       var entryPoints = app.manifest.entry_points;
+      var manifest = new ManifestHelper(app.manifest);
       for (var key in entryPoints) {
-        if (!entryPoints[key].types) {
+        var entryPoint = new ManifestHelper(entryPoints[key]);
+        if (!entryPoint.types) {
           console.warn('the keyboard app did not declare type.');
           continue;
         }
@@ -182,21 +194,21 @@ var KeyboardManager = {
           continue;
         }
 
-        var supportTypes = entryPoints[key].types;
+        var supportTypes = entryPoint.types;
         supportTypes.forEach(function(type) {
           if (!type || !(type in BASE_TYPE))
             return;
 
           if (!self.keyboardLayouts[type])
             self.keyboardLayouts[type] = [];
-            self.keyboardLayouts[type].activit = 0;
+            self.keyboardLayouts[type].activeLayout = 0;
 
           self.keyboardLayouts[type].push({
             'id': key,
-            'name': entryPoints[key].name,
-            'appName': app.manifest.name,
+            'name': entryPoint.name,
+            'appName': manifest.name,
             'origin': app.origin,
-            'path': entryPoints[key].launch_path,
+            'path': entryPoint.launch_path,
             'index': self.keyboardLayouts[type].length
           });
         });
@@ -205,10 +217,6 @@ var KeyboardManager = {
   },
 
   inputFocusChange: function km_inputFocusChange(evt) {
-    // XXX Send the fake event to value selector
-
-    window.dispatchEvent(new CustomEvent('inputfocuschange', evt));
-
     var type = evt.detail.inputType;
 
     // Skip the <select> element and inputs with type of date/time,
@@ -234,7 +242,7 @@ var KeyboardManager = {
         // if target group (input type) does not exist, use text for default
         if (!self.keyboardLayouts[group])
           group = 'text';
-        self.setKeyboardToShow(group, self.keyboardLayouts[group].activit);
+        self.setKeyboardToShow(group, self.keyboardLayouts[group].activeLayout);
         self.showKeyboard();
 
         // We also want to show the permanent notification
@@ -509,7 +517,7 @@ var KeyboardManager = {
       var index = (showed.index + 1) % length;
       if (!self.keyboardLayouts[showed.type])
         showed.type = 'text';
-      self.keyboardLayouts[showed.type].activit = index;
+      self.keyboardLayouts[showed.type].activeLayout = index;
       self.resetShowingKeyboard();
       self.setKeyboardToShow(showed.type, index);
     }, FOCUS_CHANGE_DELAY);
@@ -520,23 +528,28 @@ var KeyboardManager = {
 
     var self = this;
     var showed = this.showingLayout;
+    var activeLayout = this.keyboardLayouts[showed.type].activeLayout;
 
     this.switchChangeTimeout = setTimeout(function keyboardLayoutList() {
       var items = [];
       self.keyboardLayouts[showed.type].forEach(function(layout, index) {
         var label = layout.appName + ' ' + layout.name;
-        items.push({
+        var item = {
           label: label,
           value: index
-        });
+        };
+        if (index === activeLayout) {
+          item.iconClass = 'tail-icon';
+          item.icon = 'style/icons/checkmark.png';
+        }
+        items.push(item);
       });
       self.hideKeyboard();
-      //XXX the menu is not scrollable now, and it will take focus away
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=859713
+
       ActionMenu.open(items, 'Layout selection', function(selectedIndex) {
         if (!self.keyboardLayouts[showed.type])
           showed.type = 'text';
-        self.keyboardLayouts[showed.type].activit = selectedIndex;
+        self.keyboardLayouts[showed.type].activeLayout = selectedIndex;
         self.setKeyboardToShow(showed.type, selectedIndex);
         self.showKeyboard();
 
@@ -554,8 +567,8 @@ var KeyboardManager = {
 
         // Mimic the success callback to show the current keyboard
         // when user canceled it.
-        var activit = self.keyboardLayouts[showed.type].activit;
-        self.setKeyboardToShow(showed.type, activit);
+        var activeLayout = self.keyboardLayouts[showed.type].activeLayout;
+        self.setKeyboardToShow(showed.type, activeLayout);
         self.showKeyboard();
 
         // Hide the tray to show the app directly after

@@ -16,6 +16,7 @@
 
 /* label wrapper */
 .draggable > div > span {
+  margin-top: 0.1rem;
   /* shift left edge of text to center */
   left: 50%;
 }
@@ -23,21 +24,21 @@
 /* text label */
 .draggable > div > span > span {
   font-size: 1.3rem;
-  text-shadow: 0.1rem 0.1rem 0.3rem rgba(0,0,0,0.6);
+  text-shadow: 0 0.1rem 0.2rem rgba(0,0,0,1);
   /* shift left edge of text half distance to left */
   margin-left: -106%;
 }
 
 .overDock > div > *:not(img) {
-	opacity: 0;
+  opacity: 0;
 }
 
 @-moz-keyframes shake {
   0% { -moz-transform: scale(1); }
-	25% { -moz-transform: scale(1.05); }
+  25% { -moz-transform: scale(1.05); }
   50% { -moz-transform: scale(1); }
   75% { -moz-transform: scale(0.95); }
-	100% { -moz-transform: scale(1); }
+  100% { -moz-transform: scale(1); }
 }
 
 @-moz-keyframes none {}
@@ -65,5 +66,30 @@ body[data-mode = 'edit'] ol > li[data-dragging] {
 }
 
 body[data-dragging] ol > li {
-	opacity: 0.7;
+  opacity: 0.7;
+}
+
+body[data-mode = 'edit'] ol > li.hidden {
+  opacity: 0;
+}
+
+body[data-mode = 'edit'] ol > li[data-is-collection = 'true'] > div > img {
+  transform: scale(1);
+  transition: transform .3s;
+}
+
+body[data-dragging] ol > li[data-is-collection = 'true'] > div > img {
+  transform: scale(0.8);
+}
+
+body[data-dragging] ol > li[data-is-collection = 'true'].hover > div::before {
+	transform: scale(1.2);
+	opacity: 0.8;
+}
+
+/* This rules changes the axe icon for a plus symbol */
+
+body[data-dragging] ol > li[data-is-collection = 'true'].hover > span.options,
+body[data-dragging] #footer li[data-is-collection = 'true'].hover > span.options {
+  background: url(../resources/images/plus_small_ico.png) no-repeat left top / 2.4rem;
 }
