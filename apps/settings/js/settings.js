@@ -45,13 +45,9 @@ var Settings = {
     // load panel (+ dependencies) if necessary -- this should be synchronous
     this.lazyLoad(newPanel);
 
-    // switch previous/current/forward classes
-    // FIXME: The '.peek' is here to avoid an ugly white
-    // flickering when transitioning (gecko 18)
-    // the forward class helps us 'peek' in the right direction
-    oldPanel.className = newPanel.className ? 'peek' : 'peek previous forward';
-    newPanel.className = newPanel.className ?
-                           'current peek' : 'peek current forward';
+    // switch previous/current classes
+    oldPanel.className = newPanel.className ? '' : 'previous';
+    newPanel.className = 'current';
 
     /**
      * Most browsers now scroll content into view taking CSS transforms into
@@ -70,11 +66,6 @@ var Settings = {
 
       // We need to wait for the next tick otherwise gecko gets confused
       setTimeout(function nextTick() {
-        oldPanel.classList.remove('peek');
-        oldPanel.classList.remove('forward');
-        newPanel.classList.remove('peek');
-        newPanel.classList.remove('forward');
-
         // Bug 818056 - When multiple visible panels are present,
         // they are not painted correctly. This appears to fix the issue.
         // Only do this after the first load
@@ -577,7 +568,12 @@ var Settings = {
         value = input.checked; // boolean
         break;
       case 'range':
-        value = parseFloat(input.value).toFixed(1); // float
+        // Bug 906296:
+        //   We parseFloat() once to be able to round to 1 digit, then
+        //   we parseFloat() again to make sure to store a Number and
+        //   not a String, otherwise this will make Gecko unable to
+        //   apply new settings.
+        value = parseFloat(parseFloat(input.value).toFixed(1)); // float
         break;
       case 'select-one':
       case 'radio':
@@ -853,9 +849,13 @@ window.addEventListener('load', function loadSettings() {
 
   Settings.init();
 
-  LazyLoader.load(['js/utils.js', 'js/mvvm/models.js', 'js/mvvm/views.js'],
-    startupLocale);
-  LazyLoader.load([
+  setTimeout(function nextTick() {
+    LazyLoader.load([
+      'js/utils.js',
+      'js/mvvm/models.js',
+      'js/mvvm/views.js'],
+      startupLocale);
+    LazyLoader.load([
       'shared/js/keyboard_helper.js',
       'js/airplane_mode.js',
       'js/battery.js',
@@ -868,7 +868,8 @@ window.addEventListener('load', function loadSettings() {
       'js/security_privacy.js',
       'js/icc_menu.js',
       'shared/js/settings_listener.js'
-  ], handleRadioAndCardState);
+    ], handleRadioAndCardState);
+  });
 
   function handleRadioAndCardState() {
     function disableSIMRelatedSubpanels(disable) {

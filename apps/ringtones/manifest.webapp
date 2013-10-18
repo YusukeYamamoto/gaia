@@ -28,5 +28,10 @@
       "description": "Gaia Ringtone Picker"
     }
   },
+  "icons": {
+    "60": "/style/icons/Ringtones_60.png",
+    "90": "/style/icons/Ringtones_90.png",
+    "120": "/style/icons/Ringtones_120.png"
+  },
   "default_locale": "en-US"
 }

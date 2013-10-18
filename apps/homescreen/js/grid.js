@@ -47,8 +47,12 @@ var GridManager = (function() {
     right: 0
   };
 
+  var isSearchPageEnabled =
+    document.body.classList.contains('searchPageEnabled');
+
   var MAX_ICONS_PER_PAGE = 4 * 4;
-  var MAX_ICONS_PER_EVME_PAGE = 4 * 3;
+  var MAX_ICONS_PER_EVME_PAGE = isSearchPageEnabled ? 4 * 3 : 4 * 4;
+
   var EVME_PAGE_STATE_INDEX = 1;
   // Check if there is space for another row of icons
   // For WVGA, 800x480, we also want to show 4 x 5 grid on homescreen
@@ -62,6 +66,7 @@ var GridManager = (function() {
   // tablet+ devices are stricted to 5 x 3 grid
   if (notTinyLayout) {
     MAX_ICONS_PER_PAGE = 5 * 3;
+    MAX_ICONS_PER_EVME_PAGE = isSearchPageEnabled ? 5 * 2 : MAX_ICONS_PER_PAGE;
   }
 
   var startEvent, isPanning = false, startX, currentX, deltaX, removePanHandler,
@@ -179,20 +184,11 @@ var GridManager = (function() {
     };
   }
 
-  function addActive(target) {
-    if ('isIcon' in target.dataset) {
-      target.classList.add('active');
-      removeActive !== noop && removeActive();
-      removeActive = function _removeActive() {
-        target.classList.remove('active');
-        removeActive = noop;
-      };
-    } else {
-      removeActive = noop;
-    }
+  function tap(element) {
+    releaseEvents();
+    IconManager.cancelActive();
+    pageHelper.getCurrent().tap(element, IconManager.removeActive);
   }
-
-  var removeActive = noop;
 
   function handleEvent(evt) {
     switch (evt.type) {
@@ -205,7 +201,7 @@ var GridManager = (function() {
         attachEvents();
         removePanHandler = noop;
         isPanning = false;
-        addActive(evt.target);
+        IconManager.addActive(evt.target);
         panningResolver.reset();
         break;
 
@@ -234,7 +230,7 @@ var GridManager = (function() {
         var forward = deltaX < 0;
 
         // Since we're panning, the icon we're over shouldn't be active
-        removeActive();
+        IconManager.removeActive();
 
         var refresh;
 
@@ -328,9 +324,8 @@ var GridManager = (function() {
         break;
 
       case touchend:
-        releaseEvents();
-        pageHelper.getCurrent().tap(evt.target);
-        removeActive();
+        tap(evt.target);
+
         break;
 
       case 'wheel':
@@ -355,7 +350,7 @@ var GridManager = (function() {
 
     removePanHandler();
     Homescreen.setMode('edit');
-    removeActive();
+    IconManager.removeActive();
     LazyLoader.load(['style/dragdrop.css', 'js/dragdrop.js'], function() {
       DragDropManager.init();
       DragDropManager.start(evt, {
@@ -380,8 +375,7 @@ var GridManager = (function() {
         page = page - 1;
       }
     } else if (!isPanning && evt) {
-      releaseEvents();
-      pageHelper.getCurrent().tap(evt.target);
+      tap(evt.target);
     }
 
     goToPage(page);

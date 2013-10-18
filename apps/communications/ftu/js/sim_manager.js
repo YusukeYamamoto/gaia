@@ -15,8 +15,6 @@ var SimManager = {
 
     _ = navigator.mozL10n.get;
 
-    IccHelper.addEventListener('icccardlockerror',
-                               this.handleUnlockError.bind(this));
     IccHelper.addEventListener('cardstatechange',
                                this.handleCardState.bind(this));
 
@@ -130,9 +128,7 @@ var SimManager = {
       return;
 
     IccHelper.getCardLockRetryCount('pin', function(retryCount) {
-      if (!retryCount) {
-        UIManager.pinRetriesLeft.classList.add('hidden');
-      } else {
+      if (retryCount) {
         var l10nArgs = {n: retryCount};
         UIManager.pinRetriesLeft.textContent = _('inputCodeRetriesLeft',
                                                  l10nArgs);
@@ -157,9 +153,7 @@ var SimManager = {
       return;
 
     IccHelper.getCardLockRetryCount('puk', function(retryCount) {
-      if (!retryCount) {
-        UIManager.pukRetriesLeft.classList.add('hidden');
-      } else {
+      if (retryCount) {
         var l10nArgs = {n: retryCount};
         UIManager.pukRetriesLeft.textContent = _('inputCodeRetriesLeft',
                                                  l10nArgs);
@@ -197,9 +191,7 @@ var SimManager = {
     }
 
     IccHelper.getCardLockRetryCount(lockType, function(retryCount) {
-      if (!retryCount) {
-        UIManager.xckRetriesLeft.classList.add('hidden');
-      } else {
+      if (retryCount) {
         var l10nArgs = {n: retryCount};
         UIManager.xckRetriesLeft.textContent = _('inputCodeRetriesLeft',
                                                  l10nArgs);
@@ -282,6 +274,9 @@ var SimManager = {
     req.onsuccess = (function sm_unlockSuccess() {
       this._unlocked = true;
       this.hideScreen();
+    }).bind(this);
+    req.onerror = (function sm_unlockError() {
+      this.handleUnlockError(req.error);
     }).bind(this);
   },
 

@@ -568,6 +568,9 @@ function setKeyboardName(name, callback) {
     }
   }
 
+  if (inputMethod.deactivate)
+    inputMethod.deactivate();
+
   if (keyboard.imEngine) {
     loadIMEngine(name, function() {
       inputMethod = InputMethods[keyboard.imEngine];
@@ -1939,7 +1942,12 @@ function showKeyboard(state) {
 
 // Hide keyboard
 function hideKeyboard() {
+
   console.log('#dbg:keyboard.js:hideKeyboard-call■■■');
+
+  if (!isKeyboardRendered)
+    return;
+
 
   IMERender.hideIME();
   if (inputMethod.deactivate){

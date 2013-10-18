@@ -99,6 +99,7 @@ navigator.mozL10n.ready(function SettingsDateAndTime() {
     gTimePicker.disabled = _timeAutoEnabled;
     gTimezoneRegion.disabled = (_timezoneAutoAvailable && _timeAutoEnabled);
     gTimezoneCity.disabled = (_timezoneAutoAvailable && _timeAutoEnabled);
+    gTimezone.hidden = !(_timezoneAutoAvailable && _timeAutoEnabled);
 
     if (_timeAutoEnabled) {
       document.getElementById('time-manual').classList.add('disabled');
@@ -121,6 +122,7 @@ navigator.mozL10n.ready(function SettingsDateAndTime() {
   function setTimeAutoEnabled(enabled) {
     _timeAutoEnabled = enabled;
     gTimeAutoSwitch.dataset.state = enabled ? 'auto' : 'manual';
+    gTimezone.hidden = !(_timezoneAutoAvailable && _timeAutoEnabled);
 
     var cset = {};
     cset[kTimezoneAutoEnabled] = enabled;
@@ -204,13 +206,7 @@ navigator.mozL10n.ready(function SettingsDateAndTime() {
   };
 
   function updateTimezone(timezone) {
-    if (timezone.indexOf('+') >= 0) {
-      timezone = timezone.replace('+', '-');
-    } else if (timezone.indexOf('-') >= 0) {
-      timezone = timezone.replace('-', '+');
-    }
     gTimezoneValue.textContent = timezone;
-    gTimezone.hidden = !(_timezoneAutoAvailable && _timeAutoEnabled);
   }
 
   settings.addObserver('time.timezone', function(event) {
