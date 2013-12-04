@@ -298,6 +298,19 @@ function execute(options) {
    'tethering.wifi.security.password': '1234567890',
    'tethering.wifi.connectedClients': 0,
    'tethering.usb.connectedClients': 0,
+   'tethering.forcechangeapn.enabled': 0,
+   'tethering.forcechangeapn.apn': '',
+   'tethering.forcechangeapn.carrier': '',
+   'tethering.forcechangeapn.passwd': '',
+   'tethering.forcechangeapn.httpProxyHost': '',
+   'tethering.forcechangeapn.httpProxyPort': 0,
+   'tethering.forcechangeapn.mmsc': '',
+   'tethering.forcechangeapn.mmsproxy': '',
+   'tethering.forcechangeapn.mmsport': 0,
+   'tethering.forcechangeapn.roaming_enabled': false,
+   'tethering.forcechangeapn.user': '',
+   'tethering.forcechangeapn.authtype': 'notDefined',
+
    'time.clock.automatic-update.enabled': true,
    'time.timezone.automatic-update.enabled': true,
    'time.timezone': null,
@@ -337,6 +350,10 @@ function execute(options) {
 
   if (config.PRODUCTION === '1') {
     settings['feedback.url'] = 'https://input.mozilla.org/api/v1/feedback/';
+  }
+
+  if (config.FORCEAPNENABLE === '1') {
+    settings['gaia/build/settings.js'] = '1';
   }
 
   settings['language.current'] = config.GAIA_DEFAULT_LOCALE;

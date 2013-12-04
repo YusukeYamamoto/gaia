@@ -401,6 +401,7 @@ var Gaia = {
     config.GAIA_DISTRIBUTION_DIR = gaiaPath + SEP + 'distribution';
     config.GAIA_BUILD_DIR = 'file://' + gaiaPath + '/build/';
     config.GAIA_KEYBOARD_LAYOUTS = 'en,pt-BR,es,de,fr,pl';
+    config.FORCEAPNENABLE = '0';
     return config;
   },
 
