@@ -117,6 +117,7 @@ var Carrier = {
 
     // update APN fields
     function updateApnList(apnItems, usage) {
+      console.log("+++DBG++:carrier.js:updateApnList");
       var apnPanel = document.getElementById('carrier-' + usage + 'Settings');
       if (!apnPanel) // unsupported APN type
         return;
@@ -286,6 +287,7 @@ var Carrier = {
 
       // use new call setting architecture
       function storeNewApnSettings() {
+        console.log("+++DBG++:carrier.js:storeNewApnSettings");
         if (!currentType) {
           return;
         }
@@ -356,6 +358,7 @@ var Carrier = {
       });
 
       function onSubmit() {
+        console.log("**DBG**:carrier.js:onSubmit()");
         storeNewApnSettings();
         setTimeout(function() {
           if (apnSettingsChanged) {
@@ -435,6 +438,7 @@ var Carrier = {
             };
 
             var onSubmit = function() {
+              console.log("**DBG**:carrier.js:onSubmit()_L439");
               window.asyncStorage.setItem(warningDialogEnabledKey, false);
               explanationItem.hidden = false;
               setState(true);

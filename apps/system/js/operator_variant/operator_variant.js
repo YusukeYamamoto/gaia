@@ -44,6 +44,7 @@
    * @param {String} mnc Mobile Network Code in the ICC card.
    */
   function applySettings(mcc, mnc) {
+    console.log("+++DBG++:applySettings_start--");
     // Save MCC and MNC codes.
     iccSettings.mcc = mcc;
     iccSettings.mnc = mnc;
@@ -52,6 +53,7 @@
     retrieveWAPUserAgentProfileSettings(applyWAPUAProfileUrl);
 
     operatorVariantHelper.applied();
+    console.log("+++DBG++:applySettings_end--");
   }
 
   /**
@@ -61,6 +63,7 @@
    *                            have been retrieved.
    */
   function retrieveOperatorVariantSettings(callback) {
+    console.log("++dbg++:retrieveOperatorVariantSettings-s");
     // This json file should always be accessed from the root instead of the
     // current working base URL so that it can work in unit-tests as well
     // as during normal run time.
@@ -71,7 +74,11 @@
     xhr.responseType = 'json';
     xhr.onreadystatechange = function() {
       if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status === 0)) {
+        console.log("++dbg++:apn.json loded!!!!");
         var apn = xhr.response;
+        if( !apn ){
+          console.log("++dbg++:apn is null");
+        }
 
         // The apn.json generator strips out leading zeros for mcc values. No
         // need for padding in this instance.
@@ -82,12 +89,22 @@
         // *mnc* values!
         var mnc = padLeft(iccSettings.mnc, 2);
 
+        console.log("++dbg++:mcc is "+ mcc +" mnc is " + mnc );
+        console.log("++dbg++:apn[mcc] is "+ apn[mcc] + "apn[mcc][mnc] is" + apn[mcc][mnc] );
         // get a list of matching APNs
         var compatibleAPN = apn[mcc] ? (apn[mcc][mnc] || []) : [];
+        var buff = "";
+        for (var i in compatibleAPN ) {
+          buff += compatibleAPN + "." + i + " = " + compatibleAPN[i] + "\n";
+        }
+
+        console.log("++dbg++:"+ buff );
+
         callback(compatibleAPN);
       }
     };
     xhr.send();
+    console.log("++dbg++:retrieveOperatorVariantSettings-e");
   }
 
   /**
@@ -96,6 +113,7 @@
    * @param {Array} result Settings to be stored.
    */
   function applyOperatorVariantSettings(result) {
+    console.log("++dbg++:applyOperatorVariantSettings-s");
     var apnPrefNames = {
       'default': {
         'ril.data.carrier': 'carrier',
@@ -142,20 +160,33 @@
     const AUTH_TYPES = ['none', 'pap', 'chap', 'papOrChap'];
     const DEFAULT_MMS_SIZE_LIMITATION = 300 * 1024;
 
+    console.log("++dbg++:applyOperatorVariantSettings-M:before_loop");
+/*    var buff = "";
+    for (var i in apnPrefNames) {
+      buff += apnPrefNames+ "." + i + " = " + objName[i] + "\n";
+    }
+
+    console.log("++dbg++:"+ buff );
+ */
+    console.log("++dbg++:applyOperatorVariantSettings-M:log_test");
     // store relevant APN settings
     var transaction = navigator.mozSettings.createLock();
     for (var type in apnPrefNames) {
+      console.log("++dbg++:type is "+ type);
       var apn = {};
       for (var i = 0; i < result.length; i++) {
         if (result[i] && result[i].type.indexOf(type) != -1) {
           apn = result[i];
+          console.log("++dbg++:apn is "+ apn);
           break;
         }
       }
       var prefNames = apnPrefNames[type];
       for (var key in prefNames) {
+        console.log("++dbg++:key is "+ key );
         var name = apnPrefNames[type][key];
         var item = {};
+        console.log("++dbg++:name is "+ name );
         switch (name) {
           // load values from the AUTH_TYPES
           case 'authtype':
@@ -178,8 +209,10 @@
         transaction.set(item);
       }
     }
+    console.log("++dbg++:applyOperatorVariantSettings-M:after_loop");
 
     buildApnSettings(result);
+    console.log("++dbg++:applyOperatorVariantSettings-e");
   }
 
   /**
@@ -190,6 +223,7 @@
    * @return {Array} The data call settings.
    */
   function buildApnSettings(result) {
+    console.log("++dbg++:buildApnSettings-s");
     var apnSettings = [];
     var apnTypeCandidates = ['default', 'supl', 'mms'];
     var checkedType = [];
@@ -219,7 +253,9 @@
       // add apn bags
       apnSettings.push(sourceAPNItem);
     }
+ /*   console.dir(apnSettings); */
     transaction.set({'ril.data.apnSettings': [apnSettings]});
+    console.log("++dbg++:buildApnSettings-e");
   }
 
   /**
@@ -230,6 +266,7 @@
    *                            have been retrieved.
    */
   function retrieveWAPUserAgentProfileSettings(callback) {
+    console.log("++dbg++:retrieveWAPUserAgentProfileSettings-s");
     var WAP_UA_PROFILE_FILE = '/resources/wapuaprof.json';
     var DEFAULT_KEY = '000000';
 
@@ -251,6 +288,7 @@
       }
     };
     xhr.send();
+    console.log("++dbg++:retrieveWAPUserAgentProfileSettings-e");
   }
 
   /**
